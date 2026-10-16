@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from "node:path";
 import { z } from "zod/v4";
 import errors from "../../../contracts/error-codes-v1.json";
 import protocol from "../../../contracts/headless-protocol-v1.json";
+import { headlessStatusSchema } from "../src/schemas";
 
 export const documentationRoot = resolve(import.meta.dirname, "../../..");
 export const documentationGuide = resolve(
@@ -47,7 +48,7 @@ const exampleSchema = z
       )
       .length(4),
     projectCreate: argumentsSchema,
-    projectSchemaVersion: z.literal(45),
+    projectSchemaVersion: headlessStatusSchema.shape.projectSchemaVersion,
     protocolVersion: z.literal(1),
     requiredEditorCapabilities: z.array(z.string()).length(4),
     standalone: z

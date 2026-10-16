@@ -6,6 +6,8 @@ mod audio_buses;
 pub use audio_buses::*;
 mod master_normalization;
 pub use master_normalization::*;
+mod narration_profiles;
+pub use narration_profiles::*;
 mod speech_alignment;
 pub use speech_alignment::*;
 mod animation_channels;
@@ -40,7 +42,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 45;
+pub const PROJECT_SCHEMA_VERSION: u32 = 46;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -260,6 +262,20 @@ impl TryFrom<ProjectDocument> for Project {
             })
         {
             return Err("speech alignment requires schema 38".into());
+        }
+        if value.schema_version < 46
+            && value.assets.as_array().is_some_and(|assets| {
+                assets.iter().any(|asset| {
+                    asset
+                        .get("origin")
+                        .and_then(|origin| origin.get("generation"))
+                        .and_then(|generation| generation.get("request"))
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|request| request.contains_key("narrationProfile"))
+                })
+            })
+        {
+            return Err("narration profile attribution requires schema 46".into());
         }
         let assets = value
             .assets
@@ -1289,6 +1305,12 @@ impl SpeechVoiceId {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SpeechSynthesisRequest {
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "narration_profiles::deserialize_present_attribution"
+    )]
+    pub narration_profile: Option<NarrationProfileAttribution>,
     pub text: String,
     pub language: String,
     pub voice_id: SpeechVoiceId,
@@ -1370,6 +1392,9 @@ impl SpeechTextOptions {
 
 impl SpeechSynthesisRequest {
     pub fn validate(&self) -> Result<(), CoreError> {
+        if let Some(profile) = &self.narration_profile {
+            profile.validate()?;
+        }
         if self.text.trim().is_empty() {
             return Err(CoreError::new(
                 ErrorCode::ValidationFailed,
@@ -3793,6 +3818,7 @@ mod tests {
         let origin = GeneratedAssetOrigin::SpeechSynthesis(SpeechGeneration {
             alignment: None,
             request: SpeechSynthesisRequest {
+                narration_profile: None,
                 text: "Hello".into(),
                 language: "en-US".into(),
                 voice_id: SpeechVoiceId("voice-1".into()),
@@ -3885,6 +3911,7 @@ mod tests {
         let valid = SpeechGeneration {
             alignment: None,
             request: SpeechSynthesisRequest {
+                narration_profile: None,
                 text: "Hello".into(),
                 language: "en-US".into(),
                 voice_id: SpeechVoiceId("provider-voice".into()),

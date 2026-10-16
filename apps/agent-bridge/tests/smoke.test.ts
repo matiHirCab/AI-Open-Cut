@@ -45,6 +45,7 @@ import { verifyMaskRenderingWorkflow } from "./mask-rendering-workflow";
 import { verifyMasterNormalizationWorkflow } from "./master-normalization-workflow";
 import { verifyMotionWorkflowPrompt } from "./motion-workflow-prompt";
 import { verifyNarrationFixtureWorkflow } from "./narration-fixture-workflow";
+import { verifyNarrationProfilesWorkflow } from "./narration-profiles-workflow";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
 import { verifyNativeRoleTeamWorkflow } from "./native-role-team-workflow";
@@ -1401,6 +1402,10 @@ it("preserves native budget diagnostics and failure atomicity through MCP jobs",
     exportsDirectory,
     join(root, "native-budget-render-marker")
   );
+});
+
+it("shares explicit versioned narration profiles across projects without changing generated intent", async () => {
+  await verifyNarrationProfilesWorkflow(client, call);
 });
 
 it("reconciles a committed job after actual bridge death and blocks orphan accumulation", async () => {

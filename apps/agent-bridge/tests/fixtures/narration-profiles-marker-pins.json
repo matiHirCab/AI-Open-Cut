@@ -1,0 +1,12 @@
+{
+  "animation-channels-v1.json": "9cee9f257369031cfbeeda673ef1c9e10bcff1c06129a42f222faa5ea1de8b70",
+  "animation-presets-v1.json": "70ebf96a6843273f03e41117993bd9be61f65f9a99c15f1cc732ca88bba72ca8",
+  "extended-visual-animation-v1.json": "7c4d94124333c14deb4fab7b4191a19804c9aeaf022327cdccf4b13a4442908e",
+  "inherited-animation-timing-v1.json": "0098eaf8e7d86eef5c40d57eae7035a0097b384a397161954919dc50de5e334a",
+  "initial-motion-preset-pack-v1.json": "10158a6d98121971270ade3d1d6b3277687bb2473008651a1aee6fe05dd6629c",
+  "mask-models-v1.json": "3c38f5d57b38951bb4519537e119020369e1ace74840f2691c0a06343dfc117b",
+  "motion-blur-sampling-v1.json": "36846bf593a4f77048928306137d98475181dcba4ee2bf059ff9570130173689",
+  "native-motif-pack-v1.json": "6efd921bbd4386fa11799eaae0eba7a2abd0e655cdbf8c27e67736181ca96dee",
+  "native-role-team-v1.json": "c2e4fa017f564e5fb22e6c90814b5bb853bc8aae25d9acf905e461144ed2b18d",
+  "solid-graphic-color-slots-v1.json": "caa6c3e3250cbfd1fcec9be86842663760a9b68bf49be777c3a838f4f8488ef1"
+}

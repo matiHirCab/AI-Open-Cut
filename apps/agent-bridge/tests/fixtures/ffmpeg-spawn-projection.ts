@@ -5,6 +5,7 @@ import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
 import ownership from "./ffmpeg-spawn-ownership-addition.json";
 import pins from "./ffmpeg-spawn-predecessor-pins.json";
+import { removeNarrationProfileAdditions } from "./narration-profiles-projection";
 
 const same = (a: unknown, b: unknown) => {
   const normalize = (value: unknown): unknown => {
@@ -25,7 +26,11 @@ const same = (a: unknown, b: unknown) => {
 
 // Invert exactly the reviewed optional error field; retain all unrelated drift.
 export const removeFfmpegSpawnMcpAddition = <T>(source: T, copy = true): T => {
-  const result = copy ? structuredClone(source) : source;
+  const result = removeNarrationProfileAdditions(
+    source,
+    "mcp-surface-v1",
+    copy
+  );
   const errors: Record<string, unknown>[] = [];
   const walk = (value: unknown) => {
     if (!value || typeof value !== "object") {
@@ -78,7 +83,10 @@ export const removeFfmpegSpawnMcpAddition = <T>(source: T, copy = true): T => {
 };
 
 export const removeFfmpegSpawnOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNarrationProfileAdditions(
+    source,
+    "contract-ownership-v1"
+  );
   const { categories } = result as { categories?: Record<string, unknown> };
   if (categories && Object.hasOwn(categories, "ffmpegSpawnDiagnostics")) {
     if (!same(categories.ffmpegSpawnDiagnostics, ownership)) {
@@ -90,7 +98,10 @@ export const removeFfmpegSpawnOwnershipAddition = <T>(source: T): T => {
 };
 
 export const removeFfmpegSpawnHeadlessAddition = <T>(source: T): T => {
-  const result = structuredClone(source) as T & { ffmpegSpawnError?: unknown };
+  const result = removeNarrationProfileAdditions(
+    source,
+    "headless-protocol-v1"
+  ) as T & { ffmpegSpawnError?: unknown };
   if (Object.hasOwn(result, "ffmpegSpawnError")) {
     if (!same(result.ffmpegSpawnError, catalog.headlessErrorExample)) {
       throw new Error("Unapproved FFmpeg spawn headless example drift");

@@ -618,6 +618,7 @@ fn predecessor_migration_preserves_managed_resource_provenance_and_revision() {
     let origin = GeneratedAssetOrigin::SpeechSynthesis(SpeechGeneration {
         alignment: None,
         request: SpeechSynthesisRequest {
+            narration_profile: None,
             text: "Retained provenance".into(),
             language: "en-US".into(),
             voice_id: SpeechVoiceId("af_heart".into()),

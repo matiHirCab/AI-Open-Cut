@@ -199,6 +199,44 @@ pub(crate) fn read_json<T: DeserializeOwned>(
     serde_json::from_slice(&bytes).map_err(CoreError::from)
 }
 
+/// Read a bounded optional regular JSON document through the storage boundary.
+pub(crate) fn read_optional_bounded_json<T: DeserializeOwned>(
+    storage: &dyn Storage,
+    path: &Path,
+    max_bytes: u64,
+) -> Result<Option<T>, CoreError> {
+    match storage.entry_kind(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(CoreError::io("cannot inspect persisted library", error)),
+        Ok(StorageEntryKind::File) => {}
+        Ok(_) => {
+            return Err(CoreError::new(
+                ErrorCode::ValidationFailed,
+                "persisted library must be a regular file",
+            ));
+        }
+    }
+    let mut bytes = Vec::new();
+    storage
+        .open_read(path)
+        .map_err(|error| CoreError::io("cannot read persisted library", error))?
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| CoreError::io("cannot read persisted library", error))?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "persisted library exceeds size limit",
+        ));
+    }
+    serde_json::from_slice(&bytes).map(Some).map_err(|_| {
+        CoreError::new(
+            ErrorCode::ValidationFailed,
+            "invalid persisted library document",
+        )
+    })
+}
+
 pub(crate) fn list_paths(storage: &dyn Storage, path: &Path) -> Result<Vec<PathBuf>, CoreError> {
     storage
         .list(path)

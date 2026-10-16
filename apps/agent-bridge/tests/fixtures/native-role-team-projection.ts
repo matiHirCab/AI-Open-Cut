@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { removeNarrationProfileAdditions } from "./narration-profiles-projection";
 import addition from "./native-role-team-ownership-addition.json";
 import pins from "./native-role-team-predecessor-pins.json";
 
@@ -16,7 +17,10 @@ export const assertCurrentRoleTeamOwnership = (source: unknown): void => {
   }
 };
 export const removeRoleTeamOwnershipAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNarrationProfileAdditions(
+    source,
+    "contract-ownership-v1"
+  );
   const categories = record(record(result).categories);
   if (Object.hasOwn(categories, "nativeRoleTeam")) {
     assertCurrentRoleTeamOwnership(result);

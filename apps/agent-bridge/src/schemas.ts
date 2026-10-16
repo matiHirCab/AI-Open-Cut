@@ -683,7 +683,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(45).optional(),
+    projectSchemaVersion: z.literal(46).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -846,8 +846,18 @@ export const speechTextOptionsSchema = z
       .array(
         z
           .object({
-            spoken: z.string().trim().min(1).max(256),
-            term: z.string().trim().min(1).max(128),
+            spoken: z
+              .string()
+              .trim()
+              .min(1)
+              .refine((value) => Array.from(value).length <= 256)
+              .meta({ maxLength: 256 }),
+            term: z
+              .string()
+              .trim()
+              .min(1)
+              .refine((value) => Array.from(value).length <= 128)
+              .meta({ maxLength: 128 }),
           })
           .strict()
       )
@@ -859,6 +869,75 @@ export const speechTextOptionsSchema = z
         "pronunciation terms must be unique"
       ),
     sentencePauseMs: z.int().min(0).max(5000).default(120),
+  })
+  .strict();
+
+// Profile semantics (including scalar limits) are validated by editor-core.
+export const narrationProfileSettingsSchema = z
+  .object({
+    language: z.string(),
+    name: z.string(),
+    speed: finite,
+    textOptions: z
+      .object({
+        chunking: z.enum(["none", "sentence"]),
+        normalization: z.enum(["none", "basic"]),
+        pronunciations: z.array(
+          z.object({ spoken: z.string(), term: z.string() }).strict()
+        ),
+        sentencePauseMs: z.int().nonnegative(),
+      })
+      .strict()
+      .default({
+        chunking: "sentence",
+        normalization: "basic",
+        pronunciations: [],
+        sentencePauseMs: 120,
+      }),
+    voiceId: z.string(),
+  })
+  .strict();
+export const narrationProfileAttributionSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    version: z.int().positive(),
+  })
+  .strict();
+export const narrationProfileSchema = z
+  .object({
+    id: z.string(),
+    settings: narrationProfileSettingsSchema,
+    version: z.int().positive(),
+  })
+  .strict();
+export const narrationProfileSelectionSchema = z
+  .object({
+    id: z.string(),
+    version: z.int().positive(),
+  })
+  .strict();
+export const resolvedNarrationRequestSchema = z
+  .object({
+    language: z.string(),
+    narrationProfile: narrationProfileAttributionSchema,
+    speed: finite.positive(),
+    text: z.string(),
+    textOptions: narrationProfileSettingsSchema.shape.textOptions,
+    voiceId: z.string(),
+  })
+  .strict();
+export const narrationProfileApplicationSchema = z
+  .object({
+    expectedVersion: z.int().positive(),
+    language: z.string().optional(),
+    profileId: z.string(),
+    speed: finite.optional(),
+    text: z.string(),
+    textOptions: narrationProfileSettingsSchema.shape.textOptions
+      .removeDefault()
+      .optional(),
+    voiceId: z.string().optional(),
   })
   .strict();
 
@@ -1020,6 +1099,7 @@ export const generatedAssetOriginSchema = z.discriminatedUnion("type", [
           request: z
             .object({
               language: z.string(),
+              narrationProfile: narrationProfileAttributionSchema.optional(),
               speed: finite.positive(),
               text: z.string(),
               textOptions: speechTextOptionsSchema,
@@ -2041,7 +2121,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(45),
+        schemaVersion: z.literal(46),
         settings: z
           .object({
             fps: z.int().positive(),
@@ -2076,6 +2156,7 @@ export const projectStateSchema = z
 const speechOverridesSchema = z
   .object({
     language: z.string().min(1).optional(),
+    profile: narrationProfileSelectionSchema.optional(),
     speed: finite.positive().optional(),
     text: z.string().trim().min(1).max(5000).optional(),
     textOptions: speechTextOptionsSchema.optional(),
@@ -2087,6 +2168,7 @@ export const speechSourceSchema = z.discriminatedUnion("type", [
   z
     .object({
       language: z.string().min(1).optional(),
+      profile: narrationProfileSelectionSchema.optional(),
       speed: finite.positive().optional(),
       text: z.string().trim().min(1).max(5000),
       textOptions: speechTextOptionsSchema.optional(),
@@ -2715,6 +2797,21 @@ export const schemas = {
       timeMs: safeMilliseconds,
     })
     .strict(),
+  narrationProfileApply: z
+    .object({ application: narrationProfileApplicationSchema })
+    .strict(),
+  narrationProfileCreate: z
+    .object({ settings: narrationProfileSettingsSchema })
+    .strict(),
+  narrationProfileGet: z.object({ profileId: z.string() }).strict(),
+  narrationProfileList: z.object({}).strict(),
+  narrationProfileUpdate: z
+    .object({
+      expectedVersion: z.int().positive(),
+      profileId: z.string(),
+      settings: narrationProfileSettingsSchema,
+    })
+    .strict(),
   previewRenderFrame: projectRevisionSchema
     .extend({ timeMs: milliseconds })
     .strict(),
@@ -2815,6 +2912,7 @@ export const schemas = {
     .extend({
       language: z.string().min(1).optional(),
       markerPolicy: speechMarkerPolicySchema.optional(),
+      profile: narrationProfileSelectionSchema.optional(),
       speed: finite.positive().optional(),
       startMs: milliseconds,
       text: z.string().trim().min(1).max(5000),
@@ -2840,6 +2938,7 @@ export const schemas = {
     .extend({
       itemId: id,
       language: z.string().min(1).optional(),
+      profile: narrationProfileSelectionSchema.optional(),
       speed: finite.positive().optional(),
       text: z.string().trim().min(1).max(5000).optional(),
       textOptions: speechTextOptionsSchema.optional(),
@@ -3104,6 +3203,7 @@ export const schemas = {
     .extend({
       language: z.string().min(1).optional(),
       markerPolicy: speechMarkerPolicySchema.optional(),
+      profile: narrationProfileSelectionSchema.optional(),
       speed: finite.positive().optional(),
       startMs: milliseconds,
       text: z.string().trim().min(1),

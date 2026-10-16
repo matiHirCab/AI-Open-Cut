@@ -1751,6 +1751,38 @@
         "scripts/validate-ci-gates.ts",
         "scripts/validate-ci-gates.test.ts"
       ]
+    },
+    "narrationProfiles": {
+      "canonical": "contracts/narration-profiles-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/narration_profiles.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/store/narration_profiles.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/tests/narration_profiles.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/speech.ts",
+        "apps/agent-bridge/src/server/speech.ts",
+        "apps/agent-bridge/tests/narration-profiles.test.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/narration-profiles.md",
+        "crates/editor-core/src/persistence.rs",
+        "docs/adr/0003-editor-core-module-boundaries.md",
+        "apps/agent-bridge/tests/speech.test.ts",
+        "apps/agent-bridge/tests/narration-profiles-workflow.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+        "apps/agent-bridge/package.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "docs/agent-bridge.md",
+        "crates/editor-core/src/render_plan.rs",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/src/tts.ts",
+        "apps/agent-bridge/tests/tts-preflight.test.ts"
+      ]
     }
   }
 }

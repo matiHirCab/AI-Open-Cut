@@ -1,7 +1,7 @@
 {
   "exampleVersion": 1,
   "protocolVersion": 1,
-  "projectSchemaVersion": 45,
+  "projectSchemaVersion": 46,
   "requiredEditorCapabilities": [
     "component_definitions",
     "component_instance_evaluation",

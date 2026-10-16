@@ -376,7 +376,7 @@ fn schema44_adoption_and_future_or_mislabeled_history_are_atomic() {
     mislabeled["components"] = json!([definition]);
     assert!(serde_json::from_value::<Project>(mislabeled.clone()).is_err());
     let mut future = old.clone();
-    future["schemaVersion"] = json!(46);
+    future["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION + 1);
     for bad in [mislabeled, future] {
         std::fs::write(p.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
         std::fs::write(

@@ -3,6 +3,11 @@ import catalog from "../../../../contracts/solid-graphic-color-slots-v1.json";
 import { restoreDiagnosticUnionRaw } from "./diagnostic-union-projection";
 import { restoreFfmpegSpawnGraphicRaw } from "./ffmpeg-spawn-graphic-projection";
 import {
+  removeNarrationProfileAdditions,
+  restoreNarrationCatalogMarker,
+  restoreNarrationProfileRaw,
+} from "./narration-profiles-projection";
+import {
   removeNativeMotifOwnershipAddition,
   restoreNativeMotifRaw,
 } from "./native-motif-pack-projection";
@@ -32,16 +37,16 @@ const equal = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 
 export const restoreSolidGraphicCatalogMarker = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = restoreNarrationCatalogMarker(source);
   const value = record(result);
-  if (value.projectSchemaVersion === catalog.projectSchemaVersion) {
+  if (value.projectSchemaVersion === 45) {
     value.projectSchemaVersion = 44;
   }
   return result;
 };
 
 export const removeSolidGraphicMcpAdditions = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNarrationProfileAdditions(source, "mcp-surface-v1");
   if (!changes.some(({ path, after }) => equal(at(result, path), after))) {
     return result;
   }
@@ -70,7 +75,10 @@ export const removeSolidGraphicMcpAdditions = <T>(source: T): T => {
   return result;
 };
 export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeNarrationProfileAdditions(
+    source,
+    "headless-protocol-v1"
+  );
   const capabilities = at(result, ["status", "editorCapabilities"]);
   if (Array.isArray(capabilities)) {
     const matches = capabilities.filter((v) => v === catalog.capability);
@@ -87,7 +95,9 @@ export const removeSolidGraphicHeadlessAddition = <T>(source: T): T => {
 export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
   const result = removeNativeMotifOwnershipAddition(
     removeRenderPreparationOwnershipAddition(
-      removeRoleTeamOwnershipAddition(source)
+      removeRoleTeamOwnershipAddition(
+        removeNarrationProfileAdditions(source, "contract-ownership-v1")
+      )
     )
   );
   const categories = record(record(result).categories);
@@ -100,7 +110,7 @@ export const removeSolidGraphicOwnershipAddition = <T>(source: T): T => {
   return result;
 };
 export const restoreSolidGraphicRaw = (input: string): string => {
-  const source = restoreNativeMotifRaw(input);
+  const source = restoreNativeMotifRaw(restoreNarrationProfileRaw(input));
   const value = record(JSON.parse(source));
   if (
     at(value, ["$defs", "RenderBudgetDiagnostic"]) ||
@@ -137,7 +147,7 @@ export const restoreSolidGraphicRaw = (input: string): string => {
     record(projected).properties = properties.filter(
       (v) => !catalog.properties.includes(v)
     );
-  } else if (value.projectSchemaVersion === catalog.projectSchemaVersion) {
+  } else if (value.projectSchemaVersion === 45) {
     // Undo exactly the owned current marker while retaining every authored raw byte.
     const raw = source.replace(
       '"projectSchemaVersion": 45',

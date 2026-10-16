@@ -7,6 +7,7 @@ import owners from "../../../contracts/contract-ownership-v1.json";
 import recipe from "../../../contracts/native-role-team-v1.json";
 import { headlessEditSchema } from "../src/schemas";
 import { registerWorkflowPrompts } from "../src/server/context";
+import { restoreNarrationProfileRaw } from "./fixtures/narration-profiles-projection";
 import pins from "./fixtures/native-role-team-predecessor-pins.json";
 import {
   assertCurrentRoleTeamOwnership,
@@ -89,7 +90,11 @@ it("retains exact prior wire catalogs hero and motif source", () => {
   ] as const) {
     expect(
       createHash("sha256")
-        .update(readFileSync(new URL(path, import.meta.url)))
+        .update(
+          restoreNarrationProfileRaw(
+            readFileSync(new URL(path, import.meta.url), "utf8")
+          )
+        )
         .digest("hex")
     ).toBe(pins[name]);
   }

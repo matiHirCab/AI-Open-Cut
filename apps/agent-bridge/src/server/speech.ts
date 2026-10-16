@@ -2,6 +2,8 @@ import { z } from "zod/v4";
 
 import {
   jobSchema,
+  narrationProfileSchema,
+  resolvedNarrationRequestSchema,
   schemas,
   speechEstimateSchema,
   speechRegenerateResultSchema,
@@ -22,6 +24,97 @@ export const registerSpeechTools = (
   server: Server,
   { jobs, speech }: ServerDependencies
 ) => {
+  server.registerTool(
+    "narration_profile_list",
+    {
+      annotations: READ_ONLY,
+      description: "List shared local narration profiles without inference.",
+      inputSchema: schemas.narrationProfileList,
+      outputSchema: z
+        .object({ profiles: z.array(narrationProfileSchema) })
+        .strict(),
+    },
+    async () => {
+      try {
+        return success({ profiles: await speech.listNarrationProfiles() });
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "narration_profile_get",
+    {
+      annotations: READ_ONLY,
+      description: "Read a current narration profile version.",
+      inputSchema: schemas.narrationProfileGet,
+      outputSchema: narrationProfileSchema,
+    },
+    async ({ profileId }) => {
+      try {
+        return success(await speech.getNarrationProfile(profileId));
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "narration_profile_create",
+    {
+      annotations: WRITE,
+      description:
+        "Save bounded narration defaults in the shared local library.",
+      inputSchema: schemas.narrationProfileCreate,
+      outputSchema: narrationProfileSchema,
+    },
+    async ({ settings }) => {
+      try {
+        return success(await speech.createNarrationProfile(settings));
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "narration_profile_update",
+    {
+      annotations: WRITE,
+      description:
+        "Explicitly update a narration profile using its current version.",
+      inputSchema: schemas.narrationProfileUpdate,
+      outputSchema: narrationProfileSchema,
+    },
+    async ({ profileId, expectedVersion, settings }) => {
+      try {
+        return success(
+          await speech.updateNarrationProfile(
+            profileId,
+            expectedVersion,
+            settings
+          )
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+  server.registerTool(
+    "narration_profile_apply",
+    {
+      annotations: READ_ONLY,
+      description:
+        "Resolve a pinned profile with explicit overrides and check provider readiness without synthesis or project mutation.",
+      inputSchema: schemas.narrationProfileApply,
+      outputSchema: resolvedNarrationRequestSchema,
+    },
+    async ({ application }) => {
+      try {
+        return success(await speech.applyNarrationProfile(application));
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
   const startGeneration = (
     input: z.infer<(typeof schemas)["speechGenerateAndInsert"]>
   ) => {

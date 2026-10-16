@@ -4855,61 +4855,71 @@ mod tests {
         let catalog: serde_json::Value =
             serde_json::from_str(include_str!("../../../contracts/speech-alignment-v1.json"))
                 .unwrap();
-        for case in catalog["valid"].as_array().unwrap() {
-            let generation = crate::SpeechGeneration {
-                request: crate::SpeechSynthesisRequest {
-                    text: "speech".into(),
-                    language: "en".into(),
-                    voice_id: crate::SpeechVoiceId("af_heart".into()),
-                    speed: 1.0,
-                    text_options: crate::SpeechTextOptions::default(),
-                },
-                provider_id: "synthesis-provider".into(),
-                model_id: "synthesis-model".into(),
-                model_version: None,
-                sample_rate_hz: 24000,
-                generated_at_ms: 1,
-                alignment: Some(serde_json::from_value(case["alignment"].clone()).unwrap()),
-            };
-            generation.validate_for_duration(Some(1000)).unwrap();
-            project.assets[0].origin =
-                Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation));
-            let aligned = evaluate_project(&project, 64, 64, 10).unwrap();
-            assert!(aligned.scene == original.scene, "{}", case["id"]);
-            let inputs = media_input_requests(&original).unwrap();
-            assert_eq!(media_input_requests(&aligned).unwrap(), inputs);
-            for intent in [
-                RenderIntent::Frame { at_ms: 500 },
-                RenderIntent::Export,
-                RenderIntent::Range {
-                    start_ms: 200,
-                    end_ms: 800,
-                    include_audio: true,
-                },
-                RenderIntent::Range {
-                    start_ms: 200,
-                    end_ms: 800,
-                    include_audio: false,
-                },
-            ] {
-                let plan = |scene: &EvaluatedScene| {
-                    build_render_plan(
-                        scene,
-                        &HashMap::new(),
-                        inputs.clone(),
-                        vec![PathBuf::from("assets/speech.wav")],
-                        None,
-                        intent,
-                        &mut vec![],
-                    )
-                    .unwrap()
+        let profile_catalog: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/narration-profiles-v1.json"
+        ))
+        .unwrap();
+        let profile: crate::NarrationProfileAttribution =
+            serde_json::from_value(profile_catalog["attribution"].clone()).unwrap();
+        // The pure evaluator/planner has no library or provider to consult.
+        for attribution in [None, Some(profile)] {
+            for case in catalog["valid"].as_array().unwrap() {
+                let generation = crate::SpeechGeneration {
+                    request: crate::SpeechSynthesisRequest {
+                        narration_profile: attribution.clone(),
+                        text: "speech".into(),
+                        language: "en".into(),
+                        voice_id: crate::SpeechVoiceId("af_heart".into()),
+                        speed: 1.0,
+                        text_options: crate::SpeechTextOptions::default(),
+                    },
+                    provider_id: "synthesis-provider".into(),
+                    model_id: "synthesis-model".into(),
+                    model_version: None,
+                    sample_rate_hz: 24000,
+                    generated_at_ms: 1,
+                    alignment: Some(serde_json::from_value(case["alignment"].clone()).unwrap()),
                 };
-                assert_eq!(
-                    plan(&aligned.scene),
-                    plan(&original.scene),
-                    "{}",
-                    case["id"]
-                );
+                generation.validate_for_duration(Some(1000)).unwrap();
+                project.assets[0].origin =
+                    Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation));
+                let aligned = evaluate_project(&project, 64, 64, 10).unwrap();
+                assert!(aligned.scene == original.scene, "{}", case["id"]);
+                let inputs = media_input_requests(&original).unwrap();
+                assert_eq!(media_input_requests(&aligned).unwrap(), inputs);
+                for intent in [
+                    RenderIntent::Frame { at_ms: 500 },
+                    RenderIntent::Export,
+                    RenderIntent::Range {
+                        start_ms: 200,
+                        end_ms: 800,
+                        include_audio: true,
+                    },
+                    RenderIntent::Range {
+                        start_ms: 200,
+                        end_ms: 800,
+                        include_audio: false,
+                    },
+                ] {
+                    let plan = |scene: &EvaluatedScene| {
+                        build_render_plan(
+                            scene,
+                            &HashMap::new(),
+                            inputs.clone(),
+                            vec![PathBuf::from("assets/speech.wav")],
+                            None,
+                            intent,
+                            &mut vec![],
+                        )
+                        .unwrap()
+                    };
+                    assert_eq!(
+                        plan(&aligned.scene),
+                        plan(&original.scene),
+                        "{}",
+                        case["id"]
+                    );
+                }
             }
         }
     }
