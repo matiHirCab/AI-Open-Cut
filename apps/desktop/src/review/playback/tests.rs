@@ -100,6 +100,10 @@ fn playback_controller_clamps_seeks_retains_identity_and_releases_worker() {
     wait(&player, |s| s.phase == Phase::Playing);
     player.send(Command::Loop(true)).unwrap();
     wait(&player, |s| s.looping);
+    player.send(Command::Pause(true)).unwrap();
+    wait(&player, |s| s.phase == Phase::Paused);
+    player.send(Command::Loop(false)).unwrap();
+    wait(&player, |s| !s.looping);
     assert_eq!(player.start_ms, 2000);
     assert_eq!(player.revision, 7);
     assert!(player.matches(&artifact));
@@ -259,6 +263,13 @@ fn native_playback_pixels_audio_pause_seek_loop_and_cleanup() {
         assert!(
             frame[56] > 220 && frame[54] < 30,
             "decoded red frame after loop"
+        );
+        player.send(Command::Pause(true)).unwrap();
+        let paused = wait(&player, |s| s.phase == Phase::Paused);
+        thread::sleep(Duration::from_millis(250));
+        assert!(
+            player.snapshot().position_ms.abs_diff(paused.position_ms) <= 200,
+            "explicit pause must stop the resumed clock"
         );
         player.stop();
         assert_eq!(player.snapshot().phase, Phase::Closed);

@@ -203,8 +203,9 @@ impl Player {
 
     pub fn send(&self, command: Command) -> Result<(), Fault> {
         let command = match command {
+            Command::Pause(paused) => Command::Pause(paused),
             Command::Seek(time) => Command::Seek(time.min(self.duration_ms.saturating_sub(1))),
-            other => other,
+            Command::Loop(looping) => Command::Loop(looping),
         };
         self.sender
             .as_ref()
