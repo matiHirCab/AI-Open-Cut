@@ -11,6 +11,7 @@ use std::{
     path::Path,
     process::{Command, Stdio},
     thread,
+    time::{Duration, Instant},
 };
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,68 @@ pub(crate) const SPAWN_STAGE: &str = "spawn";
 pub(crate) const RENDER_STAGE: &str = "render";
 pub(crate) const STDERR_TAIL_BYTES: usize = 16_384;
 pub(crate) const STDERR_EXCERPT_BYTES: usize = 4_096;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum VisualDecodeFailure {
+    Spawn,
+    StderrPipe,
+    StdoutPipe,
+    Read,
+    IncompleteFrame,
+    Empty,
+    Wait,
+    Exit,
+}
+
+impl VisualDecodeFailure {
+    fn error(self, exit_code: Option<i32>, stderr: Option<String>) -> CoreError {
+        let reason = match self {
+            Self::Spawn => "could not start decoder",
+            Self::StderrPipe => "decoder stderr pipe unavailable",
+            Self::StdoutPipe => "decoder stdout pipe unavailable",
+            Self::Read => "decoder stdout read failed",
+            Self::IncompleteFrame => "decoder returned an incomplete RGBA frame",
+            Self::Empty => "decoder returned no RGBA frame",
+            Self::Wait => "could not collect decoder exit status",
+            Self::Exit => "decoder exited unsuccessfully",
+        };
+        let mut error = CoreError::render_failure("visual_decode", exit_code, stderr);
+        // Never append command arguments, source paths or raw io::Error text.
+        error.message = format!("FFmpeg visual decode failed: {reason}");
+        error
+    }
+}
+
+fn read_visual_frames(
+    mut output: impl Read,
+    expected: usize,
+) -> Result<Vec<u8>, VisualDecodeFailure> {
+    let mut latest = vec![0; expected];
+    let mut buffer = vec![0; expected];
+    let mut saw_frame = false;
+    loop {
+        match output.read(&mut buffer[..1]) {
+            Ok(0) => break,
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return Err(VisualDecodeFailure::Read),
+        }
+        output.read_exact(&mut buffer[1..]).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::UnexpectedEof {
+                VisualDecodeFailure::IncompleteFrame
+            } else {
+                VisualDecodeFailure::Read
+            }
+        })?;
+        std::mem::swap(&mut latest, &mut buffer);
+        saw_frame = true;
+    }
+    if saw_frame {
+        Ok(latest)
+    } else {
+        Err(VisualDecodeFailure::Empty)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -984,52 +1047,46 @@ impl ProcessExecutor for SystemProcessExecutor {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|_| CoreError::render_failure("visual_decode", None, None))?;
-        let stderr = child
-            .stderr
+            .map_err(|_| VisualDecodeFailure::Spawn.error(None, None))?;
+        let Some(stderr) = child.stderr.take() else {
+            let _ = child.kill();
+            let status = child.wait().ok();
+            return Err(VisualDecodeFailure::StderrPipe
+                .error(status.and_then(|status| status.code()), None));
+        };
+        let reader = thread::spawn(move || collect_bounded_tail(stderr, STDERR_TAIL_BYTES).0);
+        let result = child
+            .stdout
             .take()
-            .ok_or_else(|| CoreError::render_failure("visual_decode", None, None))?;
-        let reader = thread::spawn(move || read_bounded_tail(stderr, STDERR_TAIL_BYTES));
-        let result = (|| {
-            let mut output = child
-                .stdout
-                .take()
-                .ok_or_else(|| CoreError::render_failure("visual_decode", None, None))?;
-            let mut latest = vec![0; expected];
-            let mut buffer = vec![0; expected];
-            let mut saw_frame = false;
-            loop {
-                match output.read(&mut buffer[..1]) {
-                    Ok(0) => break,
-                    Ok(_) => {}
-                    Err(_) => return Err(CoreError::render_failure("visual_decode", None, None)),
-                }
-                output
-                    .read_exact(&mut buffer[1..])
-                    .map_err(|_| CoreError::render_failure("visual_decode", None, None))?;
-                std::mem::swap(&mut latest, &mut buffer);
-                saw_frame = true;
-            }
-            if !saw_frame {
-                return Err(CoreError::render_failure("visual_decode", None, None));
-            }
-            Ok(latest)
-        })();
+            .ok_or(VisualDecodeFailure::StdoutPipe)
+            .and_then(|output| read_visual_frames(output, expected));
         if result.is_err() {
+            // Give an EOF-producing process a bounded chance to report its
+            // actual status. A process that closes stdout but stays alive must
+            // still be terminated, as on the original failure cleanup path.
+            if matches!(
+                result,
+                Err(VisualDecodeFailure::Empty | VisualDecodeFailure::IncompleteFrame)
+            ) {
+                let deadline = Instant::now() + Duration::from_millis(100);
+                while matches!(child.try_wait(), Ok(None)) {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    if remaining.is_zero() {
+                        break;
+                    }
+                    thread::sleep(remaining.min(Duration::from_millis(1)));
+                }
+            }
             let _ = child.kill();
         }
-        let status = child
-            .wait()
-            .map_err(|_| CoreError::render_failure("visual_decode", None, None));
-        let tail = reader.join().ok().and_then(Result::ok).unwrap_or_default();
-        let bytes = result?;
-        let status = status?;
+        let status = child.wait();
+        let tail = reader.join().unwrap_or_default();
+        let excerpt = stderr_excerpt(&tail);
+        let exit_code = status.as_ref().ok().and_then(|status| status.code());
+        let bytes = result.map_err(|failure| failure.error(exit_code, excerpt.clone()))?;
+        let status = status.map_err(|_| VisualDecodeFailure::Wait.error(None, excerpt.clone()))?;
         if !status.success() {
-            return Err(CoreError::render_failure(
-                "visual_decode",
-                status.code(),
-                stderr_excerpt(&tail),
-            ));
+            return Err(VisualDecodeFailure::Exit.error(exit_code, excerpt));
         }
         Ok(bytes)
     }
@@ -1367,14 +1424,21 @@ fn run_command(
     Ok(())
 }
 
-pub(crate) fn read_bounded_tail(mut reader: impl Read, limit: usize) -> std::io::Result<Vec<u8>> {
+pub(crate) fn read_bounded_tail(reader: impl Read, limit: usize) -> std::io::Result<Vec<u8>> {
+    let (tail, completion) = collect_bounded_tail(reader, limit);
+    completion.map(|()| tail)
+}
+
+fn collect_bounded_tail(mut reader: impl Read, limit: usize) -> (Vec<u8>, std::io::Result<()>) {
     let mut tail = Vec::with_capacity(limit);
     let mut buffer = [0_u8; 4_096];
     loop {
-        let count = reader.read(&mut buffer)?;
-        if count == 0 {
-            break;
-        }
+        let count = match reader.read(&mut buffer) {
+            Ok(0) => return (tail, Ok(())),
+            Ok(count) => count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return (tail, Err(error)),
+        };
         if count >= limit {
             tail.clear();
             tail.extend_from_slice(&buffer[count - limit..count]);
@@ -1386,7 +1450,6 @@ pub(crate) fn read_bounded_tail(mut reader: impl Read, limit: usize) -> std::io:
         }
         tail.extend_from_slice(&buffer[..count]);
     }
-    Ok(tail)
 }
 
 pub(crate) fn stderr_excerpt(stderr: &[u8]) -> Option<String> {
@@ -1466,6 +1529,251 @@ pub(crate) fn find_absolute_path_start(value: &str) -> Option<usize> {
 mod tests {
     use super::*;
     use crate::render_plan::MediaInputRequest;
+
+    #[test]
+    fn visual_decode_stderr_keeps_bounded_tail_on_io_failure_and_retries_interrupted() {
+        struct FailingStderr {
+            interrupted: bool,
+            bytes: std::io::Cursor<Vec<u8>>,
+        }
+        impl Read for FailingStderr {
+            fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
+                if !self.interrupted {
+                    self.interrupted = true;
+                    return Err(std::io::ErrorKind::Interrupted.into());
+                }
+                if self.bytes.position() == self.bytes.get_ref().len() as u64 {
+                    return Err(std::io::Error::other("/private-decode/reader-error"));
+                }
+                self.bytes.read(output)
+            }
+        }
+        let reader = || FailingStderr {
+            interrupted: false,
+            bytes: std::io::Cursor::new(b"abcdefghijklmnop".to_vec()),
+        };
+        let (tail, completion) = collect_bounded_tail(reader(), 8);
+        assert_eq!(tail, b"ijklmnop");
+        assert_eq!(completion.unwrap_err().kind(), std::io::ErrorKind::Other);
+        // Existing consumers still receive non-interrupted I/O failures.
+        assert!(read_bounded_tail(reader(), 8).is_err());
+        let error = VisualDecodeFailure::Empty.error(None, stderr_excerpt(&tail));
+        assert_eq!(error.ffmpeg_stderr_excerpt.as_deref(), Some("ijklmnop"));
+        assert!(!error.message.contains("reader-error"));
+    }
+
+    #[test]
+    fn visual_decode_reader_preserves_last_frame_and_rejects_truncated_output() {
+        use std::io::Cursor;
+        assert_eq!(
+            read_visual_frames(Cursor::new([1, 2, 3, 4, 5, 6, 7, 8]), 4),
+            Ok(vec![5, 6, 7, 8])
+        );
+        assert_eq!(
+            read_visual_frames(Cursor::new([]), 4),
+            Err(VisualDecodeFailure::Empty)
+        );
+        assert_eq!(
+            read_visual_frames(Cursor::new([1, 2, 3]), 4),
+            Err(VisualDecodeFailure::IncompleteFrame)
+        );
+        assert_eq!(
+            read_visual_frames(Cursor::new([1, 2, 3, 4, 5]), 4),
+            Err(VisualDecodeFailure::IncompleteFrame)
+        );
+    }
+
+    #[test]
+    fn visual_decode_reader_handles_short_interrupted_and_failing_reads() {
+        struct ScriptedReader {
+            bytes: std::io::Cursor<Vec<u8>>,
+            calls: usize,
+            failure_at: Option<usize>,
+        }
+        impl Read for ScriptedReader {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                self.calls += 1;
+                if self.failure_at == Some(self.calls) {
+                    return Err(std::io::Error::other("/private-decode/raw-error"));
+                }
+                if self.calls % 3 == 1 {
+                    return Err(std::io::ErrorKind::Interrupted.into());
+                }
+                // Force read_exact to assemble frames across multiple reads.
+                self.bytes.read(&mut buf[..1])
+            }
+        }
+        let reader = |failure_at| ScriptedReader {
+            bytes: std::io::Cursor::new(vec![1, 2, 3, 4, 5, 6, 7, 8]),
+            calls: 0,
+            failure_at,
+        };
+        assert_eq!(read_visual_frames(reader(None), 4), Ok(vec![5, 6, 7, 8]));
+        for failure_at in [1, 3, 8] {
+            assert_eq!(
+                read_visual_frames(reader(Some(failure_at)), 4),
+                Err(VisualDecodeFailure::Read)
+            );
+        }
+    }
+
+    #[test]
+    fn visual_decode_failures_preserve_child_diagnostics_and_cleanup() {
+        let root = tempfile::tempdir().unwrap();
+        let helper = root.path().join(if cfg!(windows) {
+            "decoder.exe"
+        } else {
+            "decoder"
+        });
+        let compile = Command::new("rustc")
+            .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/visual_decoder.rs"))
+            .arg("-o")
+            .arg(&helper)
+            .output()
+            .unwrap();
+        assert!(
+            compile.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        for (mode, status, reason) in [
+            ("empty-ok", 0, "decoder returned no RGBA frame"),
+            ("empty-failed", 7, "decoder returned no RGBA frame"),
+            ("partial-ok", 0, "decoder returned an incomplete RGBA frame"),
+            (
+                "partial-failed",
+                7,
+                "decoder returned an incomplete RGBA frame",
+            ),
+            (
+                "trailing-partial",
+                7,
+                "decoder returned an incomplete RGBA frame",
+            ),
+            ("complete-failed", 7, "decoder exited unsuccessfully"),
+        ] {
+            let error = SystemProcessExecutor
+                .decode_visual_frame_at(&helper, Path::new(mode), 0.0, (1, 1))
+                .unwrap_err();
+            assert_eq!(error.code, ErrorCode::FfmpegFailed, "{mode}");
+            assert!(!error.retryable);
+            assert_eq!(error.failed_stage.as_deref(), Some("visual_decode"));
+            assert_eq!(error.ffmpeg_exit_code, Some(status), "{mode}");
+            assert_eq!(
+                error.message,
+                format!("FFmpeg visual decode failed: {reason}")
+            );
+            let excerpt = error.ffmpeg_stderr_excerpt.unwrap();
+            assert!(excerpt.len() <= STDERR_EXCERPT_BYTES);
+            assert!(!excerpt.contains("private-decode"), "{excerpt}");
+            assert!(excerpt.contains("[path]"));
+            assert!(excerpt.contains('é'));
+            assert!(excerpt.ends_with("injected decode diagnostic"));
+        }
+        assert_eq!(
+            SystemProcessExecutor
+                .decode_visual_frame_at(&helper, Path::new("complete-ok"), 0.0, (1, 1))
+                .unwrap(),
+            [5, 6, 7, 8]
+        );
+        for (mode, reason) in [
+            ("linger-empty", "decoder returned no RGBA frame"),
+            (
+                "linger-partial",
+                "decoder returned an incomplete RGBA frame",
+            ),
+        ] {
+            let source = root.path().join(mode);
+            let error = SystemProcessExecutor
+                .decode_visual_frame_at(&helper, &source, 0.0, (1, 1))
+                .unwrap_err();
+            assert!(error.message.ends_with(reason), "{}", error.message);
+            assert_eq!(error.failed_stage.as_deref(), Some("visual_decode"));
+            assert!(
+                error
+                    .ffmpeg_stderr_excerpt
+                    .unwrap()
+                    .ends_with("injected decode diagnostic")
+            );
+            assert!(
+                !source.with_extension("survived").exists(),
+                "EOF-producing child was left alive"
+            );
+        }
+        // A live Windows executable is locked. Removal proves process cleanup.
+        std::fs::remove_file(&helper).unwrap();
+        let error = SystemProcessExecutor
+            .decode_visual_frame_at(&helper, Path::new("unused"), 0.0, (1, 1))
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::FfmpegFailed);
+        assert_eq!(error.failed_stage.as_deref(), Some("visual_decode"));
+        assert!(error.message.ends_with("could not start decoder"));
+        assert_eq!(error.ffmpeg_exit_code, None);
+        assert_eq!(error.ffmpeg_stderr_excerpt, None);
+        assert!(
+            !error
+                .message
+                .contains(&root.path().to_string_lossy().to_string())
+        );
+    }
+
+    #[test]
+    #[ignore = "requires configured real FFmpeg; synthetic control does not reproduce private Windows media"]
+    fn native_visual_decode_720p30_boundary_control() {
+        let ffmpeg = std::env::var_os("OPENCUT_FFMPEG_PATH").expect("configure real FFmpeg");
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("boundary.mkv");
+        let red: Vec<_> = [255_u8, 0, 0, 255].repeat(1280 * 720);
+        let blue: Vec<_> = [0_u8, 0, 255, 255].repeat(1280 * 720);
+        let mut encoder = Command::new(&ffmpeg)
+            .args([
+                "-v",
+                "error",
+                "-nostdin",
+                "-f",
+                "rawvideo",
+                "-pixel_format",
+                "rgba",
+                "-video_size",
+                "1280x720",
+                "-framerate",
+                "30",
+                "-i",
+                "pipe:0",
+                "-an",
+                "-c:v",
+                "ffv1",
+                "-pix_fmt",
+                "bgra",
+            ])
+            .arg(&source)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdin = encoder.stdin.take().unwrap();
+        for frame in [&red, &red, &blue, &blue] {
+            stdin.write_all(frame).unwrap();
+        }
+        drop(stdin);
+        let result = encoder.wait_with_output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        for (at_ms, expected) in [(0.0, &red), (65.0, &red), (67.0, &blue), (101.0, &blue)] {
+            let actual = SystemProcessExecutor
+                .decode_visual_frame_at(Path::new(&ffmpeg), &source, at_ms, (1280, 720))
+                .unwrap();
+            assert_eq!(actual.len(), expected.len());
+            assert!(
+                actual == *expected,
+                "wrong complete-frame pixels at {at_ms}ms"
+            );
+        }
+    }
 
     #[test]
     fn sampled_encoder_failure_has_safe_bounded_diagnostics_and_reaped_child() {
