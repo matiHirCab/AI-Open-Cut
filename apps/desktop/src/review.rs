@@ -7,6 +7,8 @@ use opencut_editor_core::{
 
 use crate::session::Startup;
 
+pub(crate) mod playback;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum InspectorTab {
     #[default]
@@ -46,6 +48,8 @@ pub(crate) struct Review {
     pub frame: Option<Artifact>,
     pub range: Option<Artifact>,
     pub feedback: Option<String>,
+    pub playback: Option<playback::Presentation>,
+    pub playback_release: Option<gpui::Subscription>,
 }
 
 impl Default for Review {
@@ -58,6 +62,8 @@ impl Default for Review {
             frame: None,
             range: None,
             feedback: None,
+            playback: None,
+            playback_release: None,
         }
     }
 }
@@ -85,7 +91,12 @@ impl Review {
     pub fn publish(&mut self, artifact: Artifact) {
         match artifact.request {
             Request::Frame(_) => self.frame = Some(artifact),
-            Request::Range(_) => self.range = Some(artifact),
+            Request::Range(_) => {
+                if let Some(playback) = &mut self.playback {
+                    playback.player.stop();
+                }
+                self.range = Some(artifact);
+            }
         }
     }
 }
