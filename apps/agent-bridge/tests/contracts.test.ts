@@ -135,11 +135,11 @@ import {
   restoreRenderPreparationOwnershipRaw,
 } from "./fixtures/render-preparation-progress-projection";
 import { removeSpeechAlignmentMcpAdditions } from "./fixtures/speech-alignment-projection";
-
 import {
   projectTrackMatteCatalogPredecessor,
   projectTrackMatteMcpPredecessor,
 } from "./fixtures/track-matte-projection";
+import { verifyShortPlanningContract } from "./short-candidates-contract";
 
 // Keep earlier transition checks intact after the exact current34→33 projection.
 it("accepts the complete reference recipe through the unchanged typed batch contract", () => {
@@ -1342,6 +1342,11 @@ describe("canonical public contracts", () => {
     expect(ARTIFACT_DELIVERY.headlessProtocolChanged).toBe(false);
     expect(ARTIFACT_DELIVERY.persistedSchemaChanged).toBe(false);
   });
+
+  it(
+    "governs the independent short-candidate CLI and exact ownership addition",
+    verifyShortPlanningContract
+  );
 
   it("keeps TypeScript checking in the standalone contract gate", () => {
     expect(AGENT_BRIDGE_PACKAGE.scripts["contracts:check"]).toMatch(

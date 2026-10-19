@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import additions from "./narration-profiles-additions.json";
 import markerPins from "./narration-profiles-marker-pins.json";
+import {
+  removeShortPlanningOwnership,
+  restoreShortPlanningOwnershipRaw,
+} from "./short-candidates-projection";
 
 type RecordValue = Record<string, unknown>;
 type Path = (string | number)[];
@@ -30,7 +34,7 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  const result = copy ? structuredClone(source) : source;
+  const result = removeShortPlanningOwnership(source, copy);
   const changes: Change[] = additions[name];
   let present: boolean;
   if (name === "mcp-surface-v1") {
@@ -86,6 +90,10 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
 };
 
 export const restoreNarrationProfileRaw = (input: string): string => {
+  const previous = restoreShortPlanningOwnershipRaw(input);
+  if (previous !== input) {
+    return restoreNarrationProfileRaw(previous);
+  }
   const source = JSON.parse(input);
   if (source.projectSchemaVersion === 46) {
     const raw = input.replace(
