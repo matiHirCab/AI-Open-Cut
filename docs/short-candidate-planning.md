@@ -8,9 +8,12 @@ From `apps/agent-bridge`, with the existing native headless executable built and
 OPENCUT_CONFIG_ROOT=/path/to/repository \
 OPENCUT_PROJECTS_DIR=/path/to/project-store \
 OPENCUT_EXPORTS_DIR=/path/to/existing-export-directory \
+OPENCUT_ALLOWED_MEDIA_DIRS=/path/to/existing-approved-media-root \
 OPENCUT_HEADLESS_PATH=/path/to/repository/target/debug/opencut-headless \
   bun run src/short-candidates-cli.ts < request.json > plan.json
 ```
+
+Use the existing authorized media root for `OPENCUT_ALLOWED_MEDIA_DIRS`; the native runtime requires it even when the asset is already managed.
 
 On Windows, set the same environment variables to installed Windows paths, then use byte-preserving file redirection from the bridge directory:
 
