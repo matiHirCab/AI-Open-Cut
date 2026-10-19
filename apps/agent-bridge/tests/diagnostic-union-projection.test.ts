@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { restoreDiagnosticUnionRaw } from "./fixtures/diagnostic-union-projection";
+import { removeDurableMcpAdditions } from "./fixtures/durable-production-projection";
 import pins from "./fixtures/ffmpeg-spawn-predecessor-pins.json";
 
 it("rejects a complete loss of budget fields through combined rollback and retains every historical pin", () => {
@@ -15,10 +16,12 @@ it("rejects a complete loss of budget fields through combined rollback and retai
     expect(createHash("sha256").update(historical).digest("hex")).toBe(hash);
     expect(restoreDiagnosticUnionRaw(historical)).toBe(historical);
   }
-  const incomplete = JSON.parse(
-    readFileSync(
-      new URL("../../../contracts/mcp-surface-v1.json", import.meta.url),
-      "utf8"
+  const incomplete = removeDurableMcpAdditions(
+    JSON.parse(
+      readFileSync(
+        new URL("../../../contracts/mcp-surface-v1.json", import.meta.url),
+        "utf8"
+      )
     )
   );
   let removed = 0;

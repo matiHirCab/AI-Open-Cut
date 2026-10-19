@@ -53,6 +53,7 @@ import {
 } from "../src/headless-contract";
 import { eventSchema } from "../src/headless-events";
 import { EPHEMERAL_JOBS_CAPABILITY } from "../src/job-runtime";
+import { DURABLE_CAPABILITY } from "../src/production-requests/contract";
 import { RENDER_BUDGETS, renderBudgetSchema } from "../src/render-budget";
 import {
   closedSlotRecord,
@@ -78,12 +79,14 @@ import {
 } from "../src/server/context";
 import { registerDraftTools } from "../src/server/drafts";
 import { registerJobTools } from "../src/server/jobs";
+import { registerProductionRequestTools } from "../src/server/production-requests";
 import { registerProjectTools } from "../src/server/projects";
 import { registerRenderTools } from "../src/server/render";
 import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { verifyDurableProductionContract } from "./durable-production-contract";
 import {
   alignAudioAnalysisRuntimeObjectOrder,
   removeAudioAnalysisMcpAdditions,
@@ -459,6 +462,10 @@ const dependencies = {
 } as unknown as ServerDependencies;
 
 describe("canonical public contracts", () => {
+  it(
+    "governs opt-in durable production contracts and exact predecessor inversion",
+    verifyDurableProductionContract
+  );
   it("governs native admission diagnostic identifiers, fixtures and headless examples", () => {
     expect(RENDER_BUDGETS).toEqual(RENDER_BUDGET.budgets);
     for (const fixture of RENDER_BUDGET.fixtures) {
@@ -570,7 +577,7 @@ describe("canonical public contracts", () => {
     const second = expandMcpSurfaceCatalog(MCP_SURFACE_SOURCE);
     const firstSerialized = JSON.stringify(first);
     expect(firstSerialized).toBe(JSON.stringify(second));
-    expect(Object.keys(first.toolDefinitions)).toHaveLength(92);
+    expect(Object.keys(first.toolDefinitions)).toHaveLength(97);
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -1213,6 +1220,7 @@ describe("canonical public contracts", () => {
       MASTER_NORMALIZATION.capability,
       EPHEMERAL_JOBS_CAPABILITY,
       SOLID_GRAPHIC.capability,
+      DURABLE_CAPABILITY,
     ]);
     expect(Object.keys(status)).toEqual(
       expect.arrayContaining(HEADLESS_CONTRACT.status.requiredFields)
@@ -1400,6 +1408,7 @@ describe("canonical public contracts", () => {
     registerProjectTools(server, dependencies);
     registerTimelineTools(server, dependencies);
     registerRenderTools(server, dependencies);
+    registerProductionRequestTools(server, dependencies);
     registerSpeechTools(server, dependencies);
     registerJobTools(server, dependencies);
     registerDraftTools(server, dependencies);

@@ -4,12 +4,14 @@ import type { BridgeConfig } from "./config";
 import type { HeadlessClient } from "./headless";
 import { SERVER_INSTRUCTIONS } from "./instructions";
 import type { JobRegistry } from "./jobs";
+import type { DurableProductionService } from "./production-requests/service";
 import {
   registerContextResources,
   registerWorkflowPrompts,
 } from "./server/context";
 import { registerDraftTools } from "./server/drafts";
 import { registerJobTools } from "./server/jobs";
+import { registerProductionRequestTools } from "./server/production-requests";
 import { registerProjectTools } from "./server/projects";
 import { registerRenderTools } from "./server/render";
 import type { ServerDependencies } from "./server/shared";
@@ -24,7 +26,8 @@ export const createServer = (
   headless: HeadlessClient,
   jobs: JobRegistry,
   config: BridgeConfig,
-  transcription: TranscriptionApplicationService
+  transcription: TranscriptionApplicationService,
+  production?: DurableProductionService
 ) => {
   const server = new McpServer(
     { name: "opencut-agent-bridge", version: "0.1.0" },
@@ -34,6 +37,7 @@ export const createServer = (
     config,
     headless,
     jobs,
+    production,
     session: { activeProjectId: null },
     speech,
     transcription,
@@ -42,6 +46,7 @@ export const createServer = (
   registerProjectTools(server, dependencies);
   registerTimelineTools(server, dependencies);
   registerRenderTools(server, dependencies);
+  registerProductionRequestTools(server, dependencies);
   registerSpeechTools(server, dependencies);
   registerJobTools(server, dependencies);
   registerDraftTools(server, dependencies);

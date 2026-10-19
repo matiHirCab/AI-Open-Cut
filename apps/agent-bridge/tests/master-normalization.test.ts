@@ -10,6 +10,7 @@ import {
   masterNormalizationSchema,
   schemas,
 } from "../src/schemas";
+import { removeDurableMcpAdditions } from "./fixtures/durable-production-projection";
 import dtos from "./fixtures/master-normalization-dtos.json";
 import pins from "./fixtures/master-normalization-predecessor-pins.json";
 import {
@@ -97,7 +98,9 @@ it("preserves the exact independently captured final68 86-tool expansion and all
   const expanded = expandMcpSurfaceCatalog(previous);
   expect(expanded.tools).toHaveLength(86);
   expect(masterNormalizationDigest(expanded)).toBe(pins.mcpExpandedSha256);
-  expect(expandMcpSurfaceCatalog(mcp).tools).toHaveLength(92);
+  expect(
+    expandMcpSurfaceCatalog(removeDurableMcpAdditions(mcp)).tools
+  ).toHaveLength(92);
   expect(
     masterNormalizationDigest(
       expandMcpSurfaceCatalog(

@@ -23,6 +23,7 @@ import {
   shortPlanningSuccessSchema,
 } from "../src/short-candidates/contract";
 import { planShortCandidates } from "../src/short-candidates/planner";
+import { restoreDurableRaw } from "./fixtures/durable-production-projection";
 import {
   assertShortPlanningOwnership,
   removeShortPlanningOwnership,
@@ -157,11 +158,15 @@ export const verifyShortPlanningContract = () => {
   expect(createHash("sha256").update(raw).digest("hex")).toBe(
     contract.predecessorOwnershipSha256
   );
-  expect(restoreShortPlanningOwnershipRaw(current)).toBe(raw);
-  expect(restoreShortPlanningOwnershipRaw(raw)).toBe(raw);
-  expect(restoreShortPlanningOwnershipRaw(JSON.stringify(ownership))).toBe(
-    JSON.stringify(JSON.parse(raw))
+  expect(restoreDurableRaw(restoreShortPlanningOwnershipRaw(current))).toBe(
+    raw
   );
+  expect(restoreShortPlanningOwnershipRaw(raw)).toBe(raw);
+  expect(
+    restoreDurableRaw(
+      restoreShortPlanningOwnershipRaw(JSON.stringify(ownership))
+    )
+  ).toBe(JSON.stringify(JSON.parse(raw)));
   const compactDrift = structuredClone(ownership);
   compactDrift.categories.artifactDelivery.canonical = "foreign.json";
   const restoredDrift = restoreShortPlanningOwnershipRaw(

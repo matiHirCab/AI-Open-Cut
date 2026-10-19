@@ -43,10 +43,17 @@ export const removeShortPlanningOwnership = <T>(source: T, copy = true): T => {
 
 export const restoreShortPlanningOwnershipRaw = (input: string): string => {
   const value: unknown = JSON.parse(input);
-  const projected = removeShortPlanningOwnership(value);
-  if (JSON.stringify(value) === JSON.stringify(projected)) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("categories" in value) ||
+    !value.categories ||
+    typeof value.categories !== "object" ||
+    !Object.hasOwn(value.categories, "sourceGroundedShortPlanning")
+  ) {
     return input;
   }
+  const projected = removeShortPlanningOwnership(value);
   const entry = JSON.stringify(
     { sourceGroundedShortPlanning: contract.ownership },
     null,
@@ -56,19 +63,14 @@ export const restoreShortPlanningOwnershipRaw = (input: string): string => {
     .slice(1, -1)
     .map((line) => `  ${line}`)
     .join("\n");
-  const ownedSuffix = `,\n${entry}\n  }\n}\n`;
   const compactEntry = JSON.stringify({
     sourceGroundedShortPlanning: contract.ownership,
   }).slice(1, -1);
-  const compactSuffix = `,${compactEntry}}}`;
-  let restored: string;
-  if (input.endsWith(ownedSuffix)) {
-    restored = `${input.slice(0, -ownedSuffix.length)}\n  }\n}\n`;
-  } else if (input.endsWith(compactSuffix)) {
-    restored = `${input.slice(0, -compactSuffix.length)}}}`;
-  } else {
+  const fragment = input.includes("\n") ? `,\n${entry}` : `,${compactEntry}`;
+  if (input.split(fragment).length !== 2) {
     throw new Error("Unrelated short planning predecessor contract drift");
   }
+  const restored = input.replace(fragment, "");
   deepStrictEqual(JSON.parse(restored), projected);
   return restored;
 };

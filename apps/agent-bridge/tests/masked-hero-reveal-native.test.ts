@@ -18,6 +18,7 @@ import type { ZodType } from "zod/v4";
 import audioAnalysis from "../../../contracts/audio-analysis-v1.json";
 import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
+import durableProduction from "../../../contracts/durable-production-requests-v1.json";
 import catalog from "../../../contracts/masked-hero-reveal-v1.json";
 import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import mcpSurface from "../../../contracts/mcp-surface-v1.json";
@@ -310,7 +311,11 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
       for (const name of narrationProfileTools) {
         expect(tools.filter((tool) => tool.name === name)).toHaveLength(1);
       }
+      for (const name of durableProduction.toolNames) {
+        expect(tools.filter((tool) => tool.name === name)).toHaveLength(1);
+      }
       const addedTools = [
+        ...durableProduction.toolNames,
         ...narrationProfileTools,
         "speech_markers_generate",
         "audio_bus_set_route",

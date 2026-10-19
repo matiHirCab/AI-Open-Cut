@@ -11,6 +11,7 @@ export interface BridgeConfig {
   readonly allowedFontDirectories: readonly string[];
   readonly allowedMediaDirectories: readonly string[];
   readonly configRoot: string;
+  readonly durableProductionRequests: boolean;
   readonly environment: Readonly<Record<string, string>>;
   readonly exportsDirectory: string | undefined;
   readonly ffmpegPath: string;
@@ -64,6 +65,17 @@ const positiveInteger = (
     );
   }
   return value;
+};
+
+const durableRequestsEnabled = (source: NodeJS.ProcessEnv) => {
+  const value = source.OPENCUT_DURABLE_PRODUCTION_REQUESTS ?? "0";
+  if (value !== "0" && value !== "1") {
+    throw new BridgeError(
+      "INVALID_CONFIGURATION",
+      "OPENCUT_DURABLE_PRODUCTION_REQUESTS must be 0 or 1"
+    );
+  }
+  return value === "1";
 };
 
 const configuredAbsolute = (
@@ -300,6 +312,7 @@ export const loadBridgeConfig = (
     allowedFontDirectories: Object.freeze(allowedFontDirectories),
     allowedMediaDirectories: Object.freeze(allowedMediaDirectories ?? []),
     configRoot,
+    durableProductionRequests: durableRequestsEnabled(source),
     environment,
     exportsDirectory,
     ffmpegPath,

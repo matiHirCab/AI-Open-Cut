@@ -5,6 +5,7 @@ import type { BridgeConfig } from "../config";
 import { errorBody, type HeadlessClient } from "../headless";
 import type { HeadlessRequest } from "../headless-contract";
 import type { JobRegistry } from "../jobs";
+import type { DurableProductionService } from "../production-requests/service";
 import type { SpeechApplicationService } from "../speech";
 import type { TranscriptionApplicationService } from "../transcription";
 
@@ -31,6 +32,7 @@ export interface ServerDependencies {
   config: BridgeConfig;
   headless: HeadlessClient;
   jobs: JobRegistry;
+  production?: DurableProductionService | undefined;
   session: SessionState;
   speech: SpeechApplicationService;
   transcription: TranscriptionApplicationService;

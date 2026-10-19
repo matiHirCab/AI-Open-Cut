@@ -1799,7 +1799,50 @@
         "apps/agent-bridge/tests/fixtures/short-candidates-predecessor-ownership.raw",
         "docs/short-candidate-planning.md",
         "apps/agent-bridge/tests/contracts.test.ts",
-        "apps/agent-bridge/tests/short-candidates-workflow.ts"
+        "apps/agent-bridge/tests/short-candidates-workflow.ts",
+        "apps/agent-bridge/tests/durable-production-contract.ts",
+        "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts"
+      ]
+    },
+    "durableProductionRequests": {
+      "canonical": "contracts/durable-production-requests-v1.json",
+      "consumers": [
+        "apps/agent-bridge/src/production-requests/contract.ts",
+        "apps/agent-bridge/src/production-requests/store.ts",
+        "apps/agent-bridge/src/production-requests/service.ts",
+        "apps/agent-bridge/src/production-requests/prepare.ts",
+        "apps/agent-bridge/src/production-requests/core-outcome.ts",
+        "apps/agent-bridge/src/server/production-requests.ts",
+        "apps/agent-bridge/src/config.ts",
+        "apps/agent-bridge/src/index.ts",
+        "apps/agent-bridge/src/jobs.ts",
+        "apps/agent-bridge/src/job-runtime.ts",
+        "apps/agent-bridge/src/headless.ts",
+        "apps/agent-bridge/src/render-worker.ts",
+        "apps/agent-bridge/tests/durable-production-contract.ts",
+        "apps/agent-bridge/tests/durable-production.test.ts",
+        "apps/agent-bridge/tests/durable-production-store.test.ts",
+        "apps/agent-bridge/tests/durable-production-service.test.ts",
+        "apps/agent-bridge/tests/durable-production-settlement.test.ts",
+        "apps/agent-bridge/tests/durable-production-core-outcome.test.ts",
+        "apps/agent-bridge/tests/durable-production-mcp.test.ts",
+        "apps/agent-bridge/tests/durable-production-workflow.ts",
+        "apps/agent-bridge/tests/fixtures/durable-production-projection.ts",
+        "apps/agent-bridge/tests/fixtures/durable-production-predecessor-mcp-surface-v1.raw",
+        "apps/agent-bridge/tests/fixtures/durable-production-predecessor-contract-ownership-v1.raw",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/job-restart.md",
+        "docs/adr/0005-ephemeral-job-restart-semantics.md",
+        "apps/agent-bridge/tests/fixtures/durable-render-gate.ts",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "apps/agent-bridge/tests/packaged-smoke.test.ts",
+        "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+        "apps/agent-bridge/tests/master-normalization.test.ts",
+        "apps/agent-bridge/tests/render-budget.test.ts",
+        "apps/agent-bridge/tests/diagnostic-union-projection.test.ts",
+        "apps/agent-bridge/tests/short-candidates-contract.ts",
+        "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+        "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
       ]
     }
   }

@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import {
+  removeDurableMcpAdditions,
+  removeDurableOwnershipAddition,
+  restoreDurableRaw,
+} from "./durable-production-projection";
 import additions from "./narration-profiles-additions.json";
 import markerPins from "./narration-profiles-marker-pins.json";
 import {
@@ -34,7 +39,13 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  const result = removeShortPlanningOwnership(source, copy);
+  let result = removeShortPlanningOwnership(source, copy);
+  if (name === "mcp-surface-v1") {
+    result = removeDurableMcpAdditions(result, false);
+  }
+  if (name === "contract-ownership-v1") {
+    result = removeDurableOwnershipAddition(result, false);
+  }
   const changes: Change[] = additions[name];
   let present: boolean;
   if (name === "mcp-surface-v1") {
@@ -89,11 +100,8 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
   return result;
 };
 
-export const restoreNarrationProfileRaw = (input: string): string => {
-  const previous = restoreShortPlanningOwnershipRaw(input);
-  if (previous !== input) {
-    return restoreNarrationProfileRaw(previous);
-  }
+export const restoreNarrationProfileRaw = (current: string): string => {
+  const input = restoreDurableRaw(restoreShortPlanningOwnershipRaw(current));
   const source = JSON.parse(input);
   if (source.projectSchemaVersion === 46) {
     const raw = input.replace(
