@@ -1784,6 +1784,23 @@
         "apps/agent-bridge/tests/tts-preflight.test.ts",
         "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
       ]
+    },
+    "sourceGroundedShortPlanning": {
+      "canonical": "contracts/short-candidate-planning-cli-v1.json",
+      "consumers": [
+        "apps/agent-bridge/src/short-candidates/contract.ts",
+        "apps/agent-bridge/src/short-candidates/planner.ts",
+        "apps/agent-bridge/src/short-candidates/service.ts",
+        "apps/agent-bridge/src/short-candidates/cli.ts",
+        "apps/agent-bridge/src/short-candidates-cli.ts",
+        "apps/agent-bridge/tests/short-candidates-contract.ts",
+        "apps/agent-bridge/tests/short-candidates.test.ts",
+        "apps/agent-bridge/tests/fixtures/short-candidates-projection.ts",
+        "apps/agent-bridge/tests/fixtures/short-candidates-predecessor-ownership.raw",
+        "docs/short-candidate-planning.md",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/short-candidates-workflow.ts"
+      ]
     }
   }
 }

@@ -1,0 +1,675 @@
+{
+  "version": 1,
+  "format": "short-candidate-planning-cli-v1",
+  "sourceBaseCommit": "fa5b2a28c3e2ea3544e660cd077be1ed12ac91fe",
+  "ownership": {
+    "canonical": "contracts/short-candidate-planning-cli-v1.json",
+    "consumers": [
+      "apps/agent-bridge/src/short-candidates/contract.ts",
+      "apps/agent-bridge/src/short-candidates/planner.ts",
+      "apps/agent-bridge/src/short-candidates/service.ts",
+      "apps/agent-bridge/src/short-candidates/cli.ts",
+      "apps/agent-bridge/src/short-candidates-cli.ts",
+      "apps/agent-bridge/tests/short-candidates-contract.ts",
+      "apps/agent-bridge/tests/short-candidates.test.ts",
+      "apps/agent-bridge/tests/fixtures/short-candidates-projection.ts",
+      "apps/agent-bridge/tests/fixtures/short-candidates-predecessor-ownership.raw",
+      "docs/short-candidate-planning.md",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/tests/short-candidates-workflow.ts"
+    ]
+  },
+  "predecessorOwnershipSha256": "5febc40dd7b61404226d263058fe628b27dd1e72297f0d3f8aead30c4bb4f4fe",
+  "limits": {
+    "inputBytes": 4194304,
+    "outputBytes": 8388608,
+    "chunks": 128,
+    "segments": 4096,
+    "words": 32768,
+    "sourceDurationMs": 86400000,
+    "candidates": 32
+  },
+  "warnings": [
+    "context_review",
+    "editorial_claim_review",
+    "cut_boundary",
+    "context_excluded",
+    "duration_mismatch",
+    "chunk_boundary",
+    "candidate_overlap"
+  ],
+  "source": {
+    "projectId": "project-original",
+    "assetId": "asset-original",
+    "revision": 4,
+    "contentHash": {
+      "algorithm": "sha256",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "durationMs": 2000
+  },
+  "valid": [
+    {
+      "name": "original negation and uncertain claim",
+      "input": {
+        "version": 1,
+        "projectId": "project-original",
+        "assetId": "asset-original",
+        "expectedRevision": 4,
+        "approvedTranscript": true,
+        "chunks": [
+          {
+            "id": "c1",
+            "offsetMs": 0,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that."
+              }
+            ]
+          },
+          {
+            "id": "c2",
+            "offsetMs": 1000,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "The result is uncertain."
+              }
+            ]
+          }
+        ],
+        "targetDurationMs": 1000,
+        "maxCandidates": 2
+      },
+      "expected": {
+        "version": 1,
+        "ok": true,
+        "source": {
+          "projectId": "project-original",
+          "assetId": "asset-original",
+          "revision": 4,
+          "contentHash": {
+            "algorithm": "sha256",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "durationMs": 2000,
+          "transcriptApproved": true,
+          "transcriptionProvenance": "supplied",
+          "chunks": [
+            {
+              "id": "c1",
+              "offsetMs": 0,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            },
+            {
+              "id": "c2",
+              "offsetMs": 1000,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            }
+          ]
+        },
+        "selection": {
+          "startMs": 0,
+          "endMs": 2000
+        },
+        "targetDurationMs": 1000,
+        "candidates": [
+          {
+            "id": "candidate-1",
+            "startMs": 0,
+            "endMs": 1000,
+            "durationMs": 1000,
+            "evidence": [
+              {
+                "chunkId": "c1",
+                "segmentId": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that.",
+                "fullyIncluded": true
+              }
+            ],
+            "context": {
+              "before": null,
+              "after": {
+                "chunkId": "c2",
+                "segmentId": "s1",
+                "startMs": 1000,
+                "endMs": 2000,
+                "text": "The result is uncertain.",
+                "fullyIncluded": false
+              }
+            },
+            "editorial": {
+              "hook": "",
+              "cta": "",
+              "rationale": ""
+            },
+            "warnings": [
+              "context_review",
+              "context_excluded"
+            ]
+          },
+          {
+            "id": "candidate-2",
+            "startMs": 1000,
+            "endMs": 2000,
+            "durationMs": 1000,
+            "evidence": [
+              {
+                "chunkId": "c2",
+                "segmentId": "s1",
+                "startMs": 1000,
+                "endMs": 2000,
+                "text": "The result is uncertain.",
+                "fullyIncluded": true
+              }
+            ],
+            "context": {
+              "before": {
+                "chunkId": "c1",
+                "segmentId": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that.",
+                "fullyIncluded": false
+              },
+              "after": null
+            },
+            "editorial": {
+              "hook": "",
+              "cta": "",
+              "rationale": ""
+            },
+            "warnings": [
+              "context_review",
+              "context_excluded"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit overlapping correction",
+      "input": {
+        "version": 1,
+        "projectId": "project-original",
+        "assetId": "asset-original",
+        "expectedRevision": 4,
+        "approvedTranscript": true,
+        "chunks": [
+          {
+            "id": "c1",
+            "offsetMs": 0,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that."
+              }
+            ]
+          },
+          {
+            "id": "c2",
+            "offsetMs": 1000,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "The result is uncertain."
+              }
+            ]
+          }
+        ],
+        "targetDurationMs": 1000,
+        "maxCandidates": 2,
+        "edits": [
+          {
+            "candidateId": "candidate-1",
+            "startMs": 250,
+            "endMs": 1250,
+            "hook": "Guaranteed success"
+          }
+        ]
+      },
+      "expected": {
+        "version": 1,
+        "ok": true,
+        "source": {
+          "projectId": "project-original",
+          "assetId": "asset-original",
+          "revision": 4,
+          "contentHash": {
+            "algorithm": "sha256",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "durationMs": 2000,
+          "transcriptApproved": true,
+          "transcriptionProvenance": "supplied",
+          "chunks": [
+            {
+              "id": "c1",
+              "offsetMs": 0,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            },
+            {
+              "id": "c2",
+              "offsetMs": 1000,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            }
+          ]
+        },
+        "selection": {
+          "startMs": 0,
+          "endMs": 2000
+        },
+        "targetDurationMs": 1000,
+        "candidates": [
+          {
+            "id": "candidate-1",
+            "startMs": 250,
+            "endMs": 1250,
+            "durationMs": 1000,
+            "evidence": [
+              {
+                "chunkId": "c1",
+                "segmentId": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that.",
+                "fullyIncluded": false
+              },
+              {
+                "chunkId": "c2",
+                "segmentId": "s1",
+                "startMs": 1000,
+                "endMs": 2000,
+                "text": "The result is uncertain.",
+                "fullyIncluded": false
+              }
+            ],
+            "context": {
+              "before": null,
+              "after": null
+            },
+            "editorial": {
+              "hook": "Guaranteed success",
+              "cta": "",
+              "rationale": ""
+            },
+            "warnings": [
+              "context_review",
+              "editorial_claim_review",
+              "cut_boundary",
+              "context_excluded",
+              "chunk_boundary",
+              "candidate_overlap"
+            ]
+          },
+          {
+            "id": "candidate-2",
+            "startMs": 1000,
+            "endMs": 2000,
+            "durationMs": 1000,
+            "evidence": [
+              {
+                "chunkId": "c2",
+                "segmentId": "s1",
+                "startMs": 1000,
+                "endMs": 2000,
+                "text": "The result is uncertain.",
+                "fullyIncluded": true
+              }
+            ],
+            "context": {
+              "before": {
+                "chunkId": "c1",
+                "segmentId": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that.",
+                "fullyIncluded": false
+              },
+              "after": null
+            },
+            "editorial": {
+              "hook": "",
+              "cta": "",
+              "rationale": ""
+            },
+            "warnings": [
+              "context_review",
+              "context_excluded",
+              "candidate_overlap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "explicit selection cuts both source segments",
+      "input": {
+        "version": 1,
+        "projectId": "project-original",
+        "assetId": "asset-original",
+        "expectedRevision": 4,
+        "approvedTranscript": true,
+        "chunks": [
+          {
+            "id": "c1",
+            "offsetMs": 0,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that."
+              }
+            ]
+          },
+          {
+            "id": "c2",
+            "offsetMs": 1000,
+            "durationMs": 1000,
+            "providerId": "supplied-provider",
+            "modelId": "supplied-model",
+            "maxDurationMs": 1000,
+            "segments": [
+              {
+                "id": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "The result is uncertain."
+              }
+            ]
+          }
+        ],
+        "targetDurationMs": 1000,
+        "maxCandidates": 2,
+        "selection": {
+          "startMs": 250,
+          "endMs": 1750
+        }
+      },
+      "expected": {
+        "version": 1,
+        "ok": true,
+        "source": {
+          "projectId": "project-original",
+          "assetId": "asset-original",
+          "revision": 4,
+          "contentHash": {
+            "algorithm": "sha256",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "durationMs": 2000,
+          "transcriptApproved": true,
+          "transcriptionProvenance": "supplied",
+          "chunks": [
+            {
+              "id": "c1",
+              "offsetMs": 0,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            },
+            {
+              "id": "c2",
+              "offsetMs": 1000,
+              "durationMs": 1000,
+              "providerId": "supplied-provider",
+              "modelId": "supplied-model",
+              "maxDurationMs": 1000
+            }
+          ]
+        },
+        "selection": {
+          "startMs": 250,
+          "endMs": 1750
+        },
+        "targetDurationMs": 1000,
+        "candidates": [
+          {
+            "id": "candidate-1",
+            "startMs": 250,
+            "endMs": 1750,
+            "durationMs": 1500,
+            "evidence": [
+              {
+                "chunkId": "c1",
+                "segmentId": "s1",
+                "startMs": 0,
+                "endMs": 1000,
+                "text": "I do not recommend that.",
+                "fullyIncluded": false
+              },
+              {
+                "chunkId": "c2",
+                "segmentId": "s1",
+                "startMs": 1000,
+                "endMs": 2000,
+                "text": "The result is uncertain.",
+                "fullyIncluded": false
+              }
+            ],
+            "context": {
+              "before": null,
+              "after": null
+            },
+            "editorial": {
+              "hook": "",
+              "cta": "",
+              "rationale": ""
+            },
+            "warnings": [
+              "context_review",
+              "cut_boundary",
+              "context_excluded",
+              "duration_mismatch",
+              "chunk_boundary"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "future version",
+      "path": [
+        "version"
+      ],
+      "value": 2,
+      "kind": "input"
+    },
+    {
+      "name": "unapproved transcript",
+      "path": [
+        "approvedTranscript"
+      ],
+      "value": false,
+      "kind": "input"
+    },
+    {
+      "name": "missing complete coverage",
+      "path": [
+        "chunks",
+        1,
+        "offsetMs"
+      ],
+      "value": 1001,
+      "kind": "input"
+    },
+    {
+      "name": "provider duration exceeded",
+      "path": [
+        "chunks",
+        0,
+        "maxDurationMs"
+      ],
+      "value": 999,
+      "kind": "input"
+    },
+    {
+      "name": "candidate capacity",
+      "path": [
+        "maxCandidates"
+      ],
+      "value": 1,
+      "kind": "limit"
+    },
+    {
+      "name": "stale revision",
+      "path": [
+        "expectedRevision"
+      ],
+      "value": 3,
+      "kind": "stale"
+    },
+    {
+      "name": "unknown field",
+      "path": [
+        "guaranteedEngaging"
+      ],
+      "value": true,
+      "kind": "input"
+    },
+    {
+      "name": "invalid selected scope",
+      "path": [
+        "selection"
+      ],
+      "value": {
+        "startMs": 500,
+        "endMs": 500
+      },
+      "kind": "input"
+    },
+    {
+      "name": "negative word time",
+      "path": [
+        "chunks",
+        0,
+        "segments",
+        0,
+        "words"
+      ],
+      "value": [
+        {
+          "word": "not",
+          "startMs": -1,
+          "endMs": 200
+        }
+      ],
+      "kind": "input"
+    },
+    {
+      "name": "word outside segment",
+      "path": [
+        "chunks",
+        0,
+        "segments",
+        0,
+        "words"
+      ],
+      "value": [
+        {
+          "word": "not",
+          "startMs": 500,
+          "endMs": 1001
+        }
+      ],
+      "kind": "input"
+    },
+    {
+      "name": "closed root prototype key",
+      "path": [
+        "__proto__"
+      ],
+      "value": {},
+      "kind": "input"
+    },
+    {
+      "name": "closed chunk prototype key",
+      "path": [
+        "chunks",
+        0,
+        "__proto__"
+      ],
+      "value": {},
+      "kind": "input"
+    },
+    {
+      "name": "closed segment prototype key",
+      "path": [
+        "chunks",
+        0,
+        "segments",
+        0,
+        "__proto__"
+      ],
+      "value": {},
+      "kind": "input"
+    }
+  ],
+  "errors": [
+    {
+      "version": 1,
+      "ok": false,
+      "error": {
+        "kind": "input",
+        "message": "Invalid approved source transcript, selection or candidate edit."
+      }
+    },
+    {
+      "version": 1,
+      "ok": false,
+      "error": {
+        "kind": "core",
+        "message": "The core could not resolve the approved managed source.",
+        "code": "ASSET_NOT_FOUND",
+        "retryable": false
+      }
+    }
+  ]
+}
