@@ -1,8 +1,12 @@
 use gpui::{Context, Window, div, img, prelude::*};
 use opencut_editor_core::PreviewPreset;
+use std::time::Duration;
 
 use crate::{
-    review::Request,
+    review::{
+        Request,
+        playback::{Command, Phase, Player, Presentation},
+    },
     shell::{Shell, button},
     theme::ActiveTheme,
 };
@@ -169,6 +173,108 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
             panel = panel.child(img(artifact.path.clone()).w_full().h_64().flex_shrink_0());
         } else {
             let path = artifact.path.clone();
+            if let Some(playback) = &shell.review.playback
+                && playback.player.matches(artifact)
+            {
+                let state = playback.player.snapshot();
+                let status = match state.phase {
+                    Phase::Loading => "Loading",
+                    Phase::Paused => "Paused",
+                    Phase::Playing => "Playing",
+                    Phase::Ended => "Ended",
+                    Phase::Error(fault) => fault.message(),
+                    Phase::Closed => "Stopped",
+                };
+                panel = panel.child(div().text_sm().child(format!(
+                    "{status} · {} / {} ms · captured project {} ms",
+                    state.position_ms,
+                    playback.player.duration_ms,
+                    playback.player.start_ms.saturating_add(state.position_ms)
+                )));
+                if let Some(image) = &playback.rendered {
+                    panel = panel.child(img(image.clone()).w_full().h_64().flex_shrink_0());
+                }
+                if let Some(message) = playback.feedback {
+                    panel = panel.child(div().text_color(colors.destructive).child(message));
+                }
+                if state.phase.controls_available() {
+                    let paused = state.phase == Phase::Playing;
+                    let rewind = state.position_ms.saturating_sub(1000);
+                    let forward = state.position_ms.saturating_add(1000);
+                    let looping = !state.looping;
+                    panel = panel.child(
+                        div()
+                            .flex()
+                            .flex_wrap()
+                            .gap_1()
+                            .child(
+                                button("review-play-pause", if paused { "Pause" } else { "Play" })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        if let Some(p) = &mut this.review.playback {
+                                            let result = if p.player.snapshot().phase
+                                                == Phase::Ended
+                                                && !paused
+                                            {
+                                                p.player.send(Command::Seek(0)).and_then(|()| {
+                                                    p.player.send(Command::Pause(false))
+                                                })
+                                            } else {
+                                                p.player.send(Command::Pause(paused))
+                                            };
+                                            p.feedback = result.err().map(|e| e.message());
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                button("review-seek-back", "Seek −1 s").on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.playback_command(Command::Seek(rewind), cx)
+                                    },
+                                )),
+                            )
+                            .child(
+                                button("review-seek-start", "Seek start").on_click(cx.listener(
+                                    |this, _, _, cx| this.playback_command(Command::Seek(0), cx),
+                                )),
+                            )
+                            .child(button("review-seek-forward", "Seek +1 s").on_click(
+                                cx.listener(move |this, _, _, cx| {
+                                    this.playback_command(Command::Seek(forward), cx)
+                                }),
+                            ))
+                            .child(
+                                button(
+                                    "review-loop",
+                                    if state.looping {
+                                        "Loop: on"
+                                    } else {
+                                        "Loop: off"
+                                    },
+                                )
+                                .on_click(cx.listener(
+                                    move |this, _, _, cx| {
+                                        this.playback_command(Command::Loop(looping), cx)
+                                    },
+                                )),
+                            ),
+                    );
+                }
+                panel = panel.child(button("review-playback-stop", "Close player").on_click(
+                    cx.listener(|this, _, window, cx| {
+                        this.stop_playback(Some(window), cx);
+                        cx.notify();
+                    }),
+                ));
+            } else {
+                panel = panel.child(
+                    button("review-playback-open", "Open embedded player").on_click(cx.listener(
+                        |this, _, window, cx| {
+                            this.open_playback(window, cx);
+                        },
+                    )),
+                );
+            }
             panel = panel.child(
                 button("review-reveal", "Reveal MP4 for external playback")
                     .on_click(cx.listener(move |_, _, _, cx| cx.reveal_path(&path))),
@@ -176,4 +282,82 @@ pub(crate) fn render(shell: &Shell, window: &Window, cx: &mut Context<Shell>) ->
         }
     }
     panel
+}
+
+impl Shell {
+    fn playback_command(&mut self, command: Command, cx: &mut Context<Self>) {
+        if let Some(player) = &mut self.review.playback {
+            player.feedback = player.player.send(command).err().map(|e| e.message());
+        }
+        cx.notify();
+    }
+
+    fn stop_playback(&mut self, window: Option<&mut Window>, cx: &mut gpui::App) {
+        if let Some(mut playback) = self.review.playback.take() {
+            playback.player.stop();
+            playback.evict(window, cx);
+        }
+    }
+
+    fn open_playback(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.stop_playback(Some(&mut *window), cx);
+        let Some(artifact) = &self.review.range else {
+            return;
+        };
+        let player = match Player::open(artifact) {
+            Ok(player) => player,
+            Err(fault) => {
+                self.review.feedback = Some(fault.message().into());
+                cx.notify();
+                return;
+            }
+        };
+        self.review.feedback = None;
+        let playback = Presentation::new(player);
+        let generation = playback.id;
+        self.review.playback = Some(playback);
+        if self.review.playback_release.is_none() {
+            self.review.playback_release =
+                Some(cx.on_release(|this, cx| this.stop_playback(None, cx)));
+        }
+        cx.spawn_in(window, async move |this, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_millis(50))
+                    .await;
+                let keep = this.update_in(cx, |this, window, cx| {
+                    let Some(playback) = &mut this.review.playback else {
+                        return false;
+                    };
+                    if playback.id != generation {
+                        return false;
+                    }
+                    let retained = this
+                        .review
+                        .range
+                        .as_ref()
+                        .is_some_and(|a| playback.player.matches(a));
+                    let same_project = this
+                        .session
+                        .project
+                        .as_ref()
+                        .is_some_and(|p| p.id == playback.player.project_id);
+                    if !retained || !same_project {
+                        this.stop_playback(Some(window), cx);
+                        cx.notify();
+                        return false;
+                    }
+                    if playback.update_image(window, cx) {
+                        cx.notify();
+                    }
+                    true
+                });
+                if !matches!(keep, Ok(true)) {
+                    break;
+                }
+            }
+        })
+        .detach();
+        cx.notify();
+    }
 }
