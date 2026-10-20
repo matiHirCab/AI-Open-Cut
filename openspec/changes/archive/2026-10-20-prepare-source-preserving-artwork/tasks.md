@@ -14,10 +14,10 @@
 - [x] 3.3 Document supported PNG parameters, limits, padding, review/open commands, rollback/uncertainty and absence of GUI readiness evidence; demonstrate native synthetic preview/commit/reopen through actual CLI/headless.
 
 ## 4. Required verification and independent review
-- [ ] 4.1 Run `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, focused artwork/migration/ownership and native synthetic acceptance; preserve full logs in /tmp.
-- [ ] 4.2 In apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test:unit`, `bun run contracts:check`, `bun run test:integration`, build/assembled `bun run test:smoke`; run hermetic Python worker suites and required native/platform checks. Record unavailable platform/GUI evidence honestly; no optional source result substitutes for a required check.
+- [x] 4.1 Run `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, focused artwork/migration/ownership and native synthetic acceptance; preserve full logs in /tmp.
+- [x] 4.2 In apps/agent-bridge run `bun run typecheck`, `bun run lint`, `bun run test:unit`, `bun run contracts:check`, `bun run test:integration`, build/assembled `bun run test:smoke`; run hermetic Python worker suites and required native/platform checks. Record unavailable platform/GUI evidence honestly; no optional source result substitutes for a required check.
 - [x] 4.3 Run pinned strict all-spec validation and `moon run root:openspec-validate` before archival; only this active-change rejection is expected. Any unrelated failure blocks archival.
-- [ ] 4.4 Use openspec-verify-change and independent implementation review to resolve requirement/design/test/code mismatches; retain the separate CODEOWNER requirement for the publication stage.
+- [x] 4.4 Use openspec-verify-change and independent implementation review to resolve requirement/design/test/code mismatches; retain the separate CODEOWNER requirement for the publication stage.
 
 ## Post-verification lifecycle actions
 

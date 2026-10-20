@@ -839,3 +839,14 @@ Core SHALL stage supported legacy project and retained-history migration togethe
 #### Scenario: Commit valid adoption or recover its complete generation
 - **WHEN** a valid legacy slot definition, instance update or batch is submitted, including interruption before or after the existing journal commit point
 - **THEN** validation and migration publish one complete current-schema generation with one revision increment, precommit rejection preserves prior bytes, postcommit interruption recovers the exact committed edit/history, and repeated reopen never reapplies it
+
+### Requirement: Artwork metadata schema migration
+Current and retained supported historical snapshots SHALL migrate deterministically under the existing project lock to schema47 with optional artwork derivation absent for legacy assets. Derivation-bearing snapshots MUST require schema47 and canonical asset integrity. Old public requests, aliases, speech origins and stable errors MUST retain meaning; additive headless/CLI operations and optional MCP project-state metadata SHALL be governed by canonical fixture parity and exact predecessor inverse proofs. Unknown future schemas MUST fail closed without mutation.
+
+#### Scenario: Migrate retained legacy history
+- **WHEN** a schema46 or older supported project and its retained undo/redo are opened and reopened
+- **THEN** schema47 publication is atomic/idempotent, original asset/source/speech intent is preserved and no derivation is fabricated
+
+#### Scenario: Reject future or premature derivation
+- **WHEN** unsupported future schema or derivation metadata tagged with an older schema is loaded
+- **THEN** typed failure preserves authoritative project/history bytes without guessed downgrade or silent field removal
