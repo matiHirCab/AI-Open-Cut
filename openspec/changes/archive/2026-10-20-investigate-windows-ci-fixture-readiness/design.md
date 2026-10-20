@@ -1,0 +1,23 @@
+## Context and evidence
+
+`job-restart.test.ts` sequentially launches four Bun processes in its first test. Each crashProcess helper permits 10000ms, while the test uses Vitest's default test timeout. The current Windows log confirms a5000ms timeout in this first test; the precise slow launch is not identified. Linux baseline passes all9 cases in834ms, which does not establish Windows performance. `produce-queued` writes synchronously then self-kills; other modes write asynchronously and depend on parent kill/close handling. Bundle the unchanged fixture and real transitive jobs/schemas once using a bounded bun build subprocess in beforeAll, require successful build and actual output, then launch that bundle for every existing cold process. Do not compile a platform executable, replace production classes, share registry state, retry tests or alter limits. A separate5000ms setup hook fails closed, with no source fallback. Vitest runs on Node, so do not assume Bun globals. Preserve all four sequential killed processes and repeated crash assertions. Existing10s helper watchdog and5s controlled limit stay unchanged; add mode/PID diagnostics without claiming the startup hypothesis proved.
+
+`normalization-lifetime-native.rs` uses fs::write directly on the observed PID path. `requirePhaseEntry` waits for existence and subsequently parses outside its diagnostic try/catch. A newly created empty or partly written file can be observed. The current Windows processing/cancel case fails with Unexpected end of JSON input exactly at that parse. The non-atomic publication admits this observed failure. Correction: publish complete content through a closed sibling temporary file followed by rename, with tests for malformed publication cleanup and native publication failure preserving existing evidence. Move parsing inside the existing cleanup try/catch, without swallowing or retrying invalid JSON. Keep real backend/descendant PID liveness and absence assertions and all 1500ms/2000ms/5000ms bounds.
+
+Both Motion workflows still call choco install ffmpeg --yes --no-progress --version=7.1.1. Confirmed main HTTP503 and PR228 reported HTTP499 belong to dependency provisioning, not renderer correctness. One authorized rerun per Windows Motion job was accepted and both passed provisioning; both complete Windows jobs subsequently passed. Preserve package pin and final failure propagation; Do not add download retries or workflow changes if these unchanged reruns succeed. Never substitute a silent download source or skip dependent checks.
+
+## Alternatives and boundaries
+
+Increasing limits, suppressing JSON parse errors, skipping cases or accepting missing PIDs loses evidence and is excluded. Production restart/cancellation changes have no supporting evidence. Avoid a speculative provisioning rewrite before checking current CI. No ownership, public protocol, persistence, migration, security or privacy changes. Revert only this isolated change if needed.
+
+## Verification
+
+Add deterministic regression coverage before implementation. Run focused Windows and local scenarios, affected workflow policy tests, all mandatory repository suites, OpenSpec verification/synchronization/archive workflows and final protected validation. Record terminal exact-head CI, separating provisioning failures from code failures. Do not claim main repaired before incorporation.
+
+## Owned child cleanup
+
+The crash helper will track owned children and their close promises. Watchdog expiry kills only its child, records timeout failure, and settles only after close. afterEach stops admission of successor fixtures, kills/awaits remaining owned children before root deletion, then clears owned roots. Reset admission for each test. No new process groups, taskkill invocations, permission changes or unowned cleanup. Keep the existing10000ms helper watchdog and5000ms test/hook limits. Include mode/PID diagnostics. An incomplete output record or child startup error fails closed.
+
+## Publication failure controls
+
+Factor private native publication into a helper that closes the fixed sibling stage before rename. Native fixture tests verify final metadata is complete and a staging failure preserves an existing final record; a failure after staged data exists cannot advertise incomplete final metadata. The stage lives only within the test-owned root. The TypeScript malformed-publication control supplies invalid final JSON, confirms original SyntaxError plus the diagnostic and aborted/settled owned request, and confirms authoritative bytes and unrelated output remain unchanged. The existing missing-publication case remains unchanged. No parse retries.

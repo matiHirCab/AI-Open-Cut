@@ -1,5 +1,6 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -10,7 +11,15 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import OWNERSHIP from "../../../contracts/contract-ownership-v1.json";
 import RESTART from "../../../contracts/job-restart-v1.json";
 import MCP_SURFACE from "../../../contracts/mcp-surface-v1.json";
@@ -37,26 +46,90 @@ const root = () => {
   roots.push(directory);
   return directory;
 };
-afterEach(() => {
+const fixtureRoot = mkdtempSync(join(tmpdir(), "opencut-crash-bundle-"));
+const fixture = join(fixtureRoot, "job-crash-process.js");
+const buildFixture = (entry: string, output: string) => {
+  const built = spawnSync(
+    "bun",
+    ["build", entry, "--target=bun", "--outfile", output],
+    { encoding: "utf8", timeout: 5000, windowsHide: true }
+  );
+  if (built.error || built.status !== 0 || !existsSync(output)) {
+    throw new Error(
+      `Restart fixture build failed: ${built.error?.message ?? built.stderr}`
+    );
+  }
+};
+beforeAll(() => {
+  buildFixture(
+    resolve(import.meta.dirname, "fixtures/job-crash-process.ts"),
+    fixture
+  );
+}, 5000);
+afterAll(() => rmSync(fixtureRoot, { force: true, recursive: true }));
+const children = new Map<ChildProcess, Promise<void>>();
+let closing = false;
+beforeEach(() => {
+  closing = false;
+});
+const closeFixtures = async () => {
+  // A timed-out test must not launch a successor after its roots are deleted.
+  closing = true;
+  const settled = [...children.entries()].map(([child, closed]) => {
+    child.kill("SIGKILL");
+    return closed;
+  });
+  await Promise.all(settled);
+};
+afterEach(async () => {
+  await closeFixtures();
   for (const directory of roots.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }
 });
-const fixture = resolve(import.meta.dirname, "fixtures/job-crash-process.ts");
-const crashProcess = (args: string[]) =>
+const crashProcess = (args: string[], entry = fixture) =>
   new Promise<string>((resolveOutput, reject) => {
-    const child = spawn("bun", [fixture, ...args], {
+    if (closing) {
+      reject(new Error("Restart fixture refused during teardown"));
+      return;
+    }
+    const child = spawn("bun", [entry, ...args], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
     let diagnostics = "";
+    let failure: Error | undefined;
     const timer = setTimeout(() => {
+      failure = new Error(
+        `Restart fixture timed out: ${args[0]} pid=${child.pid}`
+      );
       child.kill("SIGKILL");
-      reject(new Error("Restart fixture timed out"));
     }, 10_000);
+    // Register settlement before any event can end the child. Both normal
+    // completion and teardown wait for close, including drained pipe handles.
+    children.set(
+      child,
+      new Promise<void>((closed) => {
+        child.once("close", () => {
+          clearTimeout(timer);
+          children.delete(child);
+          closed();
+          if (failure) {
+            reject(failure);
+          } else if (output.includes("\n") && !diagnostics) {
+            resolveOutput(output.trim());
+          } else {
+            reject(
+              new Error(
+                `Restart fixture failed: ${args[0]} pid=${child.pid}: ${diagnostics}`
+              )
+            );
+          }
+        });
+      })
+    );
     child.once("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
+      failure = error;
     });
     child.stderr.on("data", (chunk: Buffer) => {
       diagnostics += chunk.toString();
@@ -67,15 +140,62 @@ const crashProcess = (args: string[]) =>
         child.kill("SIGKILL");
       }
     });
-    child.once("close", () => {
-      clearTimeout(timer);
-      if (output.includes("\n") && !diagnostics) {
-        resolveOutput(output.trim());
-      } else {
-        reject(new Error(`Restart fixture failed: ${diagnostics}`));
-      }
-    });
   });
+
+it("refuses invalid fixture compilation without a source fallback", () => {
+  const directory = root();
+  const broken = join(directory, "broken.ts");
+  const output = join(directory, "broken.js");
+  writeFileSync(broken, "const = ;");
+  expect(() => buildFixture(broken, output)).toThrow(
+    "Restart fixture build failed"
+  );
+  expect(existsSync(output)).toBe(false);
+});
+
+it("refuses incomplete child records after settling the owned process", async () => {
+  const directory = root();
+  const partial = join(directory, "partial.js");
+  const pidFile = join(directory, "pid");
+  writeFileSync(
+    partial,
+    `import { writeFileSync } from "node:fs";
+writeFileSync(process.argv[2], String(process.pid));
+process.stdout.write("{");`
+  );
+  await expect(crashProcess([pidFile], partial)).rejects.toThrow(
+    "Restart fixture failed"
+  );
+  const pid = Number(readFileSync(pidFile, "utf8"));
+  expect(() => process.kill(pid, 0)).toThrow();
+  expect(children.size).toBe(0);
+});
+
+it("settles a live fixture before teardown and refuses successor admission", async () => {
+  const directory = root();
+  const waiting = join(directory, "waiting.js");
+  const pidFile = join(directory, "pid");
+  writeFileSync(
+    waiting,
+    `import { writeFileSync } from "node:fs";
+writeFileSync(process.argv[2], String(process.pid));
+setInterval(() => undefined, 1000);`
+  );
+  const pending = crashProcess([pidFile], waiting).then(
+    () => "unexpected success",
+    (error: unknown) => error
+  );
+  await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true));
+  const pid = Number(readFileSync(pidFile, "utf8"));
+  expect(() => process.kill(pid, 0)).not.toThrow();
+  await closeFixtures();
+  expect(await pending).toBeInstanceOf(Error);
+  expect(children.size).toBe(0);
+  expect(() => process.kill(pid, 0)).toThrow();
+  await expect(crashProcess(["probe", directory])).rejects.toThrow(
+    "Restart fixture refused during teardown"
+  );
+});
 
 it("loses every job phase on actual process death and bounds repeated crash admission", async () => {
   const directory = root();
