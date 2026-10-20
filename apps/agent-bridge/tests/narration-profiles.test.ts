@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import ARTWORK from "../../../contracts/artwork-preparation-v1.json";
 import MCP from "../../../contracts/mcp-surface-v1.json";
 import contract from "../../../contracts/narration-profiles-v1.json";
 import {
@@ -94,7 +95,9 @@ it.each(Object.entries(markerPins))(
       new URL(`../../../contracts/${name}`, import.meta.url),
       "utf8"
     );
-    expect(JSON.parse(raw).projectSchemaVersion).toBe(46);
+    expect(JSON.parse(raw).projectSchemaVersion).toBe(
+      ARTWORK.projectSchemaVersion
+    );
     expect(
       createHash("sha256").update(restoreNarrationProfileRaw(raw)).digest("hex")
     ).toBe(digest);

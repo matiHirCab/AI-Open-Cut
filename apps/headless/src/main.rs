@@ -70,6 +70,15 @@ enum Request {
         start_ms: Option<u64>,
         end_ms: Option<u64>,
     },
+    PrepareArtwork {
+        project_id: String,
+        expected_revision: u64,
+        source_asset_id: String,
+        parameters: opencut_editor_core::ArtworkParameters,
+    },
+    CommitArtwork {
+        manifest: opencut_editor_core::ArtworkManifest,
+    },
     ImportAsset {
         project_id: String,
         expected_revision: u64,
@@ -424,6 +433,18 @@ fn dispatch(
             };
             sink.value(core.get_state(&project_id, range)?)
         }
+        Request::PrepareArtwork {
+            project_id,
+            expected_revision,
+            source_asset_id,
+            parameters,
+        } => sink.value(core.prepare_artwork(
+            &project_id,
+            expected_revision,
+            &source_asset_id,
+            parameters,
+        )?),
+        Request::CommitArtwork { manifest } => sink.value(core.commit_artwork(manifest)?),
         Request::ImportAsset {
             project_id,
             expected_revision,
@@ -1272,5 +1293,36 @@ mod tests {
                 serde_json::json!({"type":"progress","progress":value.as_f64().unwrap()})
             );
         }
+    }
+    #[test]
+    fn artwork_operations_consume_the_canonical_manifest_without_parallel_policy() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/artwork-preparation-v1.json"
+        ))
+        .unwrap();
+        let prepare = serde_json::json!({"operation":"prepare_artwork","projectId":fixture["manifest"]["projectId"],"expectedRevision":2,"sourceAssetId":fixture["manifest"]["sourceAssetId"],"parameters":fixture["parameters"]});
+        let request: Request = serde_json::from_value(prepare.clone()).unwrap();
+        assert!(matches!(
+            request,
+            Request::PrepareArtwork {
+                expected_revision: 2,
+                ..
+            }
+        ));
+        let commit =
+            serde_json::json!({"operation":"commit_artwork","manifest":fixture["manifest"]});
+        let request: Request = serde_json::from_value(commit.clone()).unwrap();
+        match request {
+            Request::CommitArtwork { manifest } => {
+                assert_eq!(serde_json::to_value(manifest).unwrap(), fixture["manifest"])
+            }
+            _ => panic!("unexpected artwork request"),
+        }
+        let mut extra = prepare;
+        extra["unsafePath"] = serde_json::json!("/tmp/foreign.png");
+        assert!(serde_json::from_value::<Request>(extra).is_err());
+        let mut extra = commit;
+        extra["manifest"]["overwrite"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<Request>(extra).is_err());
     }
 }

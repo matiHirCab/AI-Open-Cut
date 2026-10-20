@@ -4253,6 +4253,7 @@ mod tests {
         let mut project = empty_project();
         project.assets = vec![
             Asset {
+                artwork_derivation: None,
                 id: "video-asset".into(),
                 media_type: MediaType::Video,
                 file_name: "video.mp4".into(),
@@ -4265,6 +4266,7 @@ mod tests {
                 probe: None,
             },
             Asset {
+                artwork_derivation: None,
                 id: "audio-asset".into(),
                 media_type: MediaType::Audio,
                 file_name: "audio.wav".into(),
@@ -4393,6 +4395,7 @@ mod tests {
         };
         project.assets = vec![
             Asset {
+                artwork_derivation: None,
                 id: "video-asset".into(),
                 media_type: MediaType::Video,
                 file_name: "video.mp4".into(),
@@ -4405,6 +4408,7 @@ mod tests {
                 probe: None,
             },
             Asset {
+                artwork_derivation: None,
                 id: "voice-asset".into(),
                 media_type: MediaType::Audio,
                 file_name: "voice.wav".into(),
@@ -4417,6 +4421,7 @@ mod tests {
                 probe: None,
             },
             Asset {
+                artwork_derivation: None,
                 id: "music-asset".into(),
                 media_type: MediaType::Audio,
                 file_name: "music.wav".into(),
@@ -4818,6 +4823,7 @@ mod tests {
         project.schema_version = crate::PROJECT_SCHEMA_VERSION;
         project.audio_buses = crate::default_audio_buses();
         project.assets.push(Asset {
+            artwork_derivation: None,
             id: "speech".into(),
             media_type: MediaType::Audio,
             file_name: "speech.wav".into(),

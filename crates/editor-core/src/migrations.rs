@@ -31,6 +31,12 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
         project.validate_audio_event_model()?;
     }
     for asset in &project.assets {
+        if project.schema_version < 47 && asset.artwork_derivation.is_some() {
+            return Err(CoreError::new(
+                ErrorCode::InvalidArgument,
+                "artwork derivation requires schema 47",
+            ));
+        }
         if project.schema_version < 38
             && matches!(&asset.origin, Some(crate::GeneratedAssetOrigin::SpeechSynthesis(generation)) if generation.alignment.is_some())
         {
@@ -401,7 +407,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=45 => {
+        9..=46 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)

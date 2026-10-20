@@ -554,6 +554,57 @@ fn raw_duplicate_alignment_fields_remain_rejected_after_legacy_inspection() {
     }
 }
 
+fn restore_artwork_catalog_marker(current: &str, name: &str, pins: &Value) -> String {
+    use sha2::{Digest, Sha256};
+    assert_eq!(
+        current.matches("\"projectSchemaVersion\": 47").count(),
+        1,
+        "{name}: expected exactly one artwork schema marker"
+    );
+    let previous = current.replacen(
+        "\"projectSchemaVersion\": 47",
+        "\"projectSchemaVersion\": 46",
+        1,
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(previous.as_bytes())),
+        pins["markers"][name]
+            .as_str()
+            .expect("missing artwork predecessor pin"),
+        "{name}: unrelated artwork predecessor drift"
+    );
+    previous
+}
+
+#[test]
+fn artwork_marker_inverse_rejects_missing_duplicate_and_unrelated_raw_drift() {
+    let pins: Value = serde_json::from_str(include_str!(
+        "../../../apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json"
+    ))
+    .unwrap();
+    let name = "animation-channels-v1.json";
+    let current = include_str!("../../../contracts/animation-channels-v1.json");
+    let previous = restore_artwork_catalog_marker(current, name, &pins);
+    assert!(previous.contains("\"projectSchemaVersion\": 46"));
+    let missing = current.replacen(
+        "\"projectSchemaVersion\": 47",
+        "\"projectSchemaVersion\": 46",
+        1,
+    );
+    let duplicate = current.replacen(
+        "\"projectSchemaVersion\": 47",
+        "\"projectSchemaVersion\": 47, \"projectSchemaVersion\": 47",
+        1,
+    );
+    let unrelated = format!("{current}\n");
+    for malformed in [missing, duplicate, unrelated] {
+        assert!(
+            std::panic::catch_unwind(|| restore_artwork_catalog_marker(&malformed, name, &pins))
+                .is_err()
+        );
+    }
+}
+
 #[test]
 fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
     use sha2::{Digest, Sha256};
@@ -569,10 +620,20 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
         "../../../apps/agent-bridge/tests/fixtures/audio-events-predecessor-pins.json"
     ))
     .unwrap();
+    let artwork_pins: Value = serde_json::from_str(include_str!(
+        "../../../apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json"
+    ))
+    .unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts");
     for name in pins["currentMarkerCatalogs"].as_array().unwrap() {
         let name = name.as_str().unwrap();
         let current = std::fs::read_to_string(root.join(name)).unwrap();
+        // Strip only the exact additive AF1 marker before the unchanged historical chain.
+        let current = if artwork_pins["markers"].get(name).is_some() {
+            restore_artwork_catalog_marker(&current, name, &artwork_pins)
+        } else {
+            current
+        };
         let bus_pins: Value = serde_json::from_str(include_str!(
             "../../../apps/agent-bridge/tests/fixtures/audio-buses-predecessor-pins.json"
         ))

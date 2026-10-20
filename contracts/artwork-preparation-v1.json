@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 47,
+  "operations": [
+    "commit_artwork",
+    "prepare_artwork"
+  ],
+  "limits": {
+    "sourceBytes": 4194304,
+    "sourceSide": 512,
+    "sourcePixels": 262144,
+    "outlineRadius": 16,
+    "reviewBytes": 8388608,
+    "manifestBytes": 32768
+  },
+  "parameters": {
+    "cleanup": {
+      "color": [
+        255,
+        255,
+        255
+      ],
+      "tolerance": 0
+    },
+    "outline": {
+      "radius": 1,
+      "color": [
+        20,
+        30,
+        40,
+        255
+      ]
+    }
+  },
+  "manifest": {
+    "version": 1,
+    "projectId": "00000000-0000-4000-8000-000000000220",
+    "expectedRevision": 2,
+    "sourceAssetId": "00000000-0000-4000-8000-000000000221",
+    "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "parameters": {
+      "cleanup": {
+        "color": [
+          255,
+          255,
+          255
+        ],
+        "tolerance": 0
+      },
+      "outline": {
+        "radius": 1,
+        "color": [
+          20,
+          30,
+          40,
+          255
+        ]
+      }
+    },
+    "resultHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "reviewHashes": {
+      "result": "1111111111111111111111111111111111111111111111111111111111111111",
+      "mask": "2222222222222222222222222222222222222222222222222222222222222222",
+      "light": "3333333333333333333333333333333333333333333333333333333333333333",
+      "dark": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "width": 5,
+    "height": 5,
+    "sourceWidth": 3,
+    "sourceHeight": 3,
+    "contentOffset": [
+      1,
+      1
+    ]
+  },
+  "derivation": {
+    "version": 1,
+    "sourceAssetId": "00000000-0000-4000-8000-000000000221",
+    "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "parameters": {
+      "cleanup": {
+        "color": [
+          255,
+          255,
+          255
+        ],
+        "tolerance": 0
+      },
+      "outline": {
+        "radius": 1,
+        "color": [
+          20,
+          30,
+          40,
+          255
+        ]
+      }
+    },
+    "sourceWidth": 3,
+    "sourceHeight": 3,
+    "contentOffset": [
+      1,
+      1
+    ]
+  },
+  "normalization": "PNG EXPAND|STRIP_16; grayscale RGB replication; absent alpha 255; gamma/ICC ignored; APNG rejected",
+  "cleanup": "four-connected border-reachable transparent-or-matching pixels; inclusive max-channel RGB difference; preserve disconnected interior regions",
+  "outline": "Chebyshev alpha dilation; radius padding; original above colored outline using rounded integer straight-alpha source-over; radius zero disabled",
+  "ownership": {
+    "canonical": "contracts/artwork-preparation-v1.json",
+    "consumers": [
+      "crates/editor-core/src/model/artwork.rs",
+      "crates/editor-core/src/model.rs",
+      "crates/editor-core/src/assets/artwork.rs",
+      "crates/editor-core/src/assets.rs",
+      "crates/editor-core/src/store/artwork.rs",
+      "crates/editor-core/src/store.rs",
+      "crates/editor-core/src/migrations.rs",
+      "crates/editor-core/tests/artwork_preparation.rs",
+      "apps/headless/src/main.rs",
+      "apps/agent-bridge/src/artwork/contract.ts",
+      "apps/agent-bridge/src/artwork/cli.ts",
+      "apps/agent-bridge/src/artwork-cli.ts",
+      "apps/agent-bridge/src/schemas.ts",
+      "apps/agent-bridge/src/headless-contract.ts",
+      "apps/agent-bridge/tests/artwork-contract.ts",
+      "apps/agent-bridge/tests/artwork.test.ts",
+      "apps/agent-bridge/tests/fixtures/artwork-projection.ts",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "docs/artwork-preparation.md",
+      "apps/agent-bridge/tests/artwork-cli.test.ts",
+      "apps/agent-bridge/tests/fixtures/artwork-additions.json",
+      "apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json",
+      "scripts/verify-artwork-preparation.py",
+      "apps/agent-bridge/tests/smoke.test.ts",
+      "crates/editor-core/tests/speech_alignment.rs"
+    ]
+  },
+  "cli": {
+    "version": 1,
+    "operations": [
+      "preview",
+      "apply",
+      "discard"
+    ],
+    "validRequests": [
+      {
+        "expectedRevision": 2,
+        "operation": "preview",
+        "outputDirectory": "/exports/artwork-220-review",
+        "parameters": {
+          "cleanup": {
+            "color": [
+              255,
+              255,
+              255
+            ],
+            "tolerance": 0
+          },
+          "outline": {
+            "radius": 1,
+            "color": [
+              20,
+              30,
+              40,
+              255
+            ]
+          }
+        },
+        "projectId": "00000000-0000-4000-8000-000000000220",
+        "sourceAssetId": "00000000-0000-4000-8000-000000000221"
+      },
+      {
+        "approve": true,
+        "directory": "/exports/artwork-220-review",
+        "operation": "apply"
+      },
+      {
+        "directory": "/exports/artwork-220-review",
+        "operation": "discard"
+      }
+    ],
+    "invalidRequests": [
+      {
+        "name": "apply requires explicit approval",
+        "request": {
+          "directory": "/exports/artwork-220-review",
+          "operation": "apply"
+        }
+      },
+      {
+        "name": "false approval cannot commit",
+        "request": {
+          "approve": false,
+          "directory": "/exports/artwork-220-review",
+          "operation": "apply"
+        }
+      },
+      {
+        "name": "unknown controls never authorize overwrite",
+        "request": {
+          "approve": true,
+          "directory": "/exports/artwork-220-review",
+          "operation": "apply",
+          "overwrite": true
+        }
+      },
+      {
+        "name": "unknown operation",
+        "request": {
+          "directory": "/exports/artwork-220-review",
+          "operation": "export"
+        }
+      },
+      {
+        "name": "discard cannot carry approval",
+        "request": {
+          "directory": "/exports/artwork-220-review",
+          "operation": "discard",
+          "approve": true
+        }
+      },
+      {
+        "name": "empty directory",
+        "request": {
+          "directory": "",
+          "operation": "discard"
+        }
+      },
+      {
+        "name": "preview requires complete core intent",
+        "request": {
+          "expectedRevision": 2,
+          "operation": "preview",
+          "outputDirectory": "/exports/artwork-220-review",
+          "projectId": "00000000-0000-4000-8000-000000000220",
+          "sourceAssetId": "00000000-0000-4000-8000-000000000221"
+        }
+      }
+    ],
+    "responses": {
+      "preview": {
+        "directory": "/exports/artwork-220-review",
+        "manifest": {
+          "version": 1,
+          "projectId": "00000000-0000-4000-8000-000000000220",
+          "expectedRevision": 2,
+          "sourceAssetId": "00000000-0000-4000-8000-000000000221",
+          "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "parameters": {
+            "cleanup": {
+              "color": [
+                255,
+                255,
+                255
+              ],
+              "tolerance": 0
+            },
+            "outline": {
+              "radius": 1,
+              "color": [
+                20,
+                30,
+                40,
+                255
+              ]
+            }
+          },
+          "resultHash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "reviewHashes": {
+            "result": "1111111111111111111111111111111111111111111111111111111111111111",
+            "mask": "2222222222222222222222222222222222222222222222222222222222222222",
+            "light": "3333333333333333333333333333333333333333333333333333333333333333",
+            "dark": "4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          "width": 5,
+          "height": 5,
+          "sourceWidth": 3,
+          "sourceHeight": 3,
+          "contentOffset": [
+            1,
+            1
+          ]
+        },
+        "ok": true,
+        "version": 1
+      },
+      "apply": {
+        "ok": true,
+        "result": {
+          "aliases": {},
+          "changedIds": [
+            "new-artwork"
+          ],
+          "projectId": "00000000-0000-4000-8000-000000000220",
+          "revision": 3,
+          "summary": "Committed artwork",
+          "warnings": []
+        },
+        "version": 1
+      },
+      "discard": {
+        "discarded": true,
+        "ok": true,
+        "version": 1
+      },
+      "invalid": {
+        "error": {
+          "code": "INVALID_ARGUMENT",
+          "message": "Artwork request or review package is invalid or unavailable",
+          "retryable": false
+        },
+        "ok": false,
+        "version": 1
+      },
+      "coreFailure": {
+        "error": {
+          "code": "REVISION_CONFLICT",
+          "message": "Artwork operation failed; inspect request, review package and current project before retry",
+          "retryable": true
+        },
+        "ok": false,
+        "version": 1
+      }
+    }
+  }
+}

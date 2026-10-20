@@ -12,6 +12,7 @@
   },
   "operations": [
     "analyze_audio",
+    "commit_artwork",
     "commit_draft",
     "commit_generated_asset",
     "commit_transcription",
@@ -33,6 +34,7 @@
     "narration_profile_resolve",
     "narration_profile_update",
     "open_project",
+    "prepare_artwork",
     "rebase_draft",
     "redo",
     "render_draft_preview",

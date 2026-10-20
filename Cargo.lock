@@ -3601,9 +3601,11 @@ dependencies = [
 name = "opencut-editor-core"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "fs2",
  "libc",
  "nix 0.31.3",
+ "png 0.18.1",
  "quick-xml 0.39.4",
  "rustybuzz 0.20.1",
  "serde",

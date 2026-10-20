@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -1416,3 +1417,45 @@ it("exposes preparation progress before completion through MCP jobs", async () =
   await verifyRenderPreparationProgressWorkflow(bridgeParameters);
   await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
 });
+
+it.runIf(process.platform === "linux")(
+  "prepares and explicitly commits source-preserving artwork through the actual file CLI",
+  async () => {
+    const report = await new Promise<string>((resolveReport, rejectReport) => {
+      execFile(
+        process.env.OPENCUT_TEST_PYTHON ?? "python3",
+        [
+          resolve(
+            import.meta.dirname,
+            "../../../scripts/verify-artwork-preparation.py"
+          ),
+        ],
+        {
+          cwd: resolve(import.meta.dirname, "../../.."),
+          env: {
+            ...process.env,
+            OPENCUT_HEADLESS_PATH:
+              process.env.OPENCUT_TEST_HEADLESS_PATH ??
+              resolve(
+                import.meta.dirname,
+                "../../../target/debug/opencut-headless"
+              ),
+          },
+          maxBuffer: 1024 * 1024,
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            rejectReport(
+              new Error(`Actual artwork CLI acceptance failed: ${stderr}`, {
+                cause: error,
+              })
+            );
+          } else {
+            resolveReport(stdout);
+          }
+        }
+      );
+    });
+    expect(JSON.parse(report)).toMatchObject({ passed: true });
+  }
+);

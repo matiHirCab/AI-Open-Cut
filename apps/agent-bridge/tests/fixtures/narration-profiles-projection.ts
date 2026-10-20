@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  removeArtworkAdditions,
+  restoreArtworkCatalogMarker,
+} from "./artwork-projection";
 import additions from "./narration-profiles-additions.json";
 import markerPins from "./narration-profiles-marker-pins.json";
 import {
@@ -34,7 +38,10 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  const result = removeShortPlanningOwnership(source, copy);
+  const result = removeShortPlanningOwnership(
+    removeArtworkAdditions(source, name, copy),
+    false
+  );
   const changes: Change[] = additions[name];
   let present: boolean;
   if (name === "mcp-surface-v1") {
@@ -82,7 +89,7 @@ export const removeNarrationProfileAdditions = <T>(
 };
 
 export const restoreNarrationCatalogMarker = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = restoreArtworkCatalogMarker(source);
   if (at(result, ["projectSchemaVersion"]) === 46) {
     (result as RecordValue).projectSchemaVersion = 45;
   }

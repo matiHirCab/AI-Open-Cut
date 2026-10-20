@@ -396,6 +396,7 @@ pub(super) fn fixture_project() -> Project {
             fps: FPS,
         },
         assets: vec![crate::Asset {
+            artwork_derivation: None,
             id: "tone".into(),
             media_type: MediaType::Audio,
             file_name: "tone.wav".into(),

@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { artworkDerivationSchema } from "./artwork/contract";
 import { BLEND_MODES } from "./blend-modes";
 import { ffmpegSpawnSchema } from "./ffmpeg-spawn";
 import { gridDescriptorSchema } from "./procedural-grids";
@@ -683,7 +684,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(46).optional(),
+    projectSchemaVersion: z.literal(47).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -2082,6 +2083,7 @@ export const projectStateSchema = z
         assets: z.array(
           z
             .object({
+              artworkDerivation: artworkDerivationSchema.optional(),
               contentHash: z
                 .object({
                   algorithm: z.literal("sha256"),
@@ -2121,7 +2123,7 @@ export const projectStateSchema = z
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(46),
+        schemaVersion: z.literal(47),
         settings: z
           .object({
             fps: z.int().positive(),
