@@ -127,7 +127,7 @@ fn decode(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), CoreError> {
     match frame.color_type {
         png::ColorType::Rgba => pixels.extend_from_slice(decoded),
         png::ColorType::Rgb => {
-            for value in decoded.chunks_exact(3) {
+            for value in decoded.as_chunks::<3>().0 {
                 pixels.extend_from_slice(&[value[0], value[1], value[2], 255]);
             }
         }
@@ -137,7 +137,7 @@ fn decode(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), CoreError> {
             }
         }
         png::ColorType::GrayscaleAlpha => {
-            for value in decoded.chunks_exact(2) {
+            for value in decoded.as_chunks::<2>().0 {
                 pixels.extend_from_slice(&[value[0], value[0], value[0], value[1]]);
             }
         }
@@ -187,7 +187,7 @@ fn cleanup(pixels: &mut [u8], width: usize, height: usize, color: [u8; 3], toler
             enqueue(index + width, &mut seen, &mut queue);
         }
     }
-    for (pixel, clear) in pixels.chunks_exact_mut(4).zip(seen) {
+    for (pixel, clear) in pixels.as_chunks_mut::<4>().0.iter_mut().zip(seen) {
         if clear {
             pixel[3] = 0;
         }
@@ -285,7 +285,12 @@ pub(crate) fn prepare_png(
         padded[start..start + source_width as usize * 4]
             .copy_from_slice(&source[source_start..source_start + source_width as usize * 4]);
     }
-    let alpha: Vec<u8> = padded.chunks_exact(4).map(|pixel| pixel[3]).collect();
+    let alpha: Vec<u8> = padded
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|pixel| pixel[3])
+        .collect();
     let outline = if radius == 0 {
         vec![0; alpha.len()]
     } else {
@@ -295,7 +300,7 @@ pub(crate) fn prepare_png(
     let mut mask = Vec::with_capacity(padded.len());
     let mut light = Vec::with_capacity(padded.len());
     let mut dark = Vec::with_capacity(padded.len());
-    for (index, source_pixel) in padded.chunks_exact(4).enumerate() {
+    for (index, source_pixel) in padded.as_chunks::<4>().0.iter().enumerate() {
         let outline_alpha = rounded(
             u32::from(outline[index]) * u32::from(parameters.outline.color[3]),
             255,

@@ -1419,7 +1419,7 @@ it("exposes preparation progress before completion through MCP jobs", async () =
 });
 
 it.runIf(process.platform === "linux")(
-  "prepares and explicitly commits source-preserving artwork through the actual file CLI",
+  "prepares and explicitly commits source-preserving artwork through the hermetic file CLI",
   async () => {
     const report = await new Promise<string>((resolveReport, rejectReport) => {
       execFile(
@@ -1429,6 +1429,7 @@ it.runIf(process.platform === "linux")(
             import.meta.dirname,
             "../../../scripts/verify-artwork-preparation.py"
           ),
+          "--hermetic",
         ],
         {
           cwd: resolve(import.meta.dirname, "../../.."),
@@ -1456,6 +1457,9 @@ it.runIf(process.platform === "linux")(
         }
       );
     });
-    expect(JSON.parse(report)).toMatchObject({ passed: true });
+    expect(JSON.parse(report)).toMatchObject({
+      passed: true,
+      verificationMode: "hermetic",
+    });
   }
 );

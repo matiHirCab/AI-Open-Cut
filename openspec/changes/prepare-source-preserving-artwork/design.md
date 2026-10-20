@@ -20,6 +20,9 @@ Meet the complete bounded AF1 slice using managed static PNG assets and explicit
 ## Risks / Trade-offs
 PNG-only excludes ordinary JPEGs; explicit errors/documentation. Simple cleanup can remove border-connected subjects; review light/dark/mask and discard before commit. Padding changes image dimensions; explicit metadata/documentation, no automatic timeline resize. File packages can be edited; compare file/manifest hashes, core revalidates bytes and revision. Large public asset schema touches shared catalogs; precise additive proof and independent review are mandatory.
 
+## Verification backend distinction
+The default checked-in artwork acceptance command MUST continue to require genuine FFmpeg/FFprobe and retain every original independent pixel, source/hash, commit/history and process-lifecycle assertion. Source smoke intentionally runs without media-tool dependencies and SHALL invoke an explicit `--hermetic` verification mode instead. That mode uses a generated probe stub accepting only the exact synthetic original PNG and an independent Python-standard-library PNG decoder with CRC, zlib and filter0..4 handling for normalized RGBA8 outputs. It SHALL execute the same literal result/mask/light/dark oracles and CLI/core/history/cancellation/oversize assertions without skips. Reports MUST identify the selected verification backend; hermetic evidence does not establish FFmpeg/FFprobe or installed renderer readiness. This test-only amendment does not change production behavior, required native gates, tool installation or CI workflows.
+
 ## Migration Plan
 Introduce fixture and migration first, then core ownership/raster/store, typed transport/CLI, tests/docs. Verify all suites before sync/archive; require protected aggregate at exact pushed head. No merge/deploy. No rollback by down-converting projects; retain untouched source backups.
 

@@ -1,10 +1,13 @@
 """Verify real source CLI/native artwork output with independent pixel oracles.
 
-Requires Linux, Bun, a built headless binary, FFmpeg and FFprobe. Retains its
-small synthetic project and JSON evidence in the reported temporary directory.
+Requires Linux, Bun and a built headless binary. Default acceptance also requires
+genuine FFmpeg/FFprobe. Explicit --hermetic mode is for source smoke without those
+tools; its probe and independent decoder are identified separately in evidence.
+Retains its small synthetic project and JSON evidence in a temporary directory.
 No provider, downloaded model, user media or external service is used.
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -69,7 +72,127 @@ def synthetic_png():
     )
 
 
-def verify(root, bun, headless, ffmpeg, ffprobe):
+def paeth(left, above, upper_left):
+    estimate = left + above - upper_left
+    distances = [abs(estimate - value) for value in (left, above, upper_left)]
+    return (left, above, upper_left)[distances.index(min(distances))]
+
+
+def decode_rgba_png(data):
+    """Independent bounded decoder for the production encoder's RGBA8 PNGs."""
+    require(data.startswith(b"\x89PNG\r\n\x1a\n"), "PNG signature missing")
+    require(len(data) <= 8 * 1024 * 1024, "Review PNG exceeds encoded bound")
+    position = 8
+    dimensions = None
+    compressed = bytearray()
+    ended = False
+    while position < len(data):
+        require(position + 12 <= len(data), "Truncated PNG chunk header")
+        length = struct.unpack_from(">I", data, position)[0]
+        kind = data[position + 4 : position + 8]
+        end = position + length + 12
+        require(end <= len(data), "Truncated PNG chunk")
+        payload = data[position + 8 : end - 4]
+        expected_crc = struct.unpack_from(">I", data, end - 4)[0]
+        require(zlib.crc32(kind + payload) & 0xFFFFFFFF == expected_crc, "PNG CRC mismatch")
+        if kind == b"IHDR":
+            require(position == 8 and dimensions is None and length == 13, "Invalid PNG header")
+            width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", payload)
+            require(1 <= width <= 544 and 1 <= height <= 544, "Unexpected PNG dimensions")
+            require((depth, color, compression, filtering, interlace) == (8, 6, 0, 0, 0), "Expected noninterlaced RGBA8 PNG")
+            dimensions = (width, height)
+        elif kind == b"IDAT":
+            require(dimensions is not None, "PNG image precedes header")
+            compressed.extend(payload)
+        elif kind == b"IEND":
+            require(length == 0 and end == len(data), "Invalid PNG ending")
+            ended = True
+            break
+        else:
+            require(kind not in (b"acTL", b"fcTL", b"fdAT"), "Unexpected animated PNG")
+            require(kind[0] & 32, "Unknown critical PNG chunk")
+        position = end
+    require(ended and dimensions is not None and compressed, "Incomplete PNG")
+    width, height = dimensions
+    stride = width * 4
+    expected_size = (stride + 1) * height
+    inflater = zlib.decompressobj()
+    filtered = inflater.decompress(bytes(compressed), expected_size + 1)
+    require(
+        len(filtered) == expected_size and inflater.eof
+        and not inflater.unused_data and not inflater.unconsumed_tail,
+        "PNG decompressed size or stream ending is invalid",
+    )
+    previous = bytearray(stride)
+    pixels = bytearray()
+    for y in range(height):
+        start = y * (stride + 1)
+        filter_type = filtered[start]
+        require(filter_type in range(5), "Unsupported PNG filter")
+        row = bytearray(filtered[start + 1 : start + 1 + stride])
+        for index in range(stride):
+            left = row[index - 4] if index >= 4 else 0
+            above = previous[index]
+            upper_left = previous[index - 4] if index >= 4 else 0
+            prediction = (
+                0, left, above, (left + above) // 2, paeth(left, above, upper_left)
+            )[filter_type]
+            row[index] = (row[index] + prediction) & 255
+        pixels.extend(row)
+        previous = row
+    return bytes(pixels)
+
+
+def verify_independent_decoder():
+    """Literal encoded rows exercise every PNG filter independently of core."""
+    first = bytes([10, 20, 30, 40, 50, 60, 70, 80])
+    second = bytes([20, 30, 40, 50, 60, 70, 80, 90])
+    filtered_seconds = (
+        second,
+        bytes([20, 30, 40, 50, 40, 40, 40, 40]),
+        bytes([10] * 8),
+        bytes([15, 20, 25, 30, 25, 25, 25, 25]),
+        bytes([10] * 8),
+    )
+    for filter_type, row in enumerate(filtered_seconds):
+        encoded = (
+            b"\x89PNG\r\n\x1a\n"
+            + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 6, 0, 0, 0))
+            + png_chunk(b"IDAT", zlib.compress(b"\0" + first + bytes([filter_type]) + row))
+            + png_chunk(b"IEND", b"")
+        )
+        require(decode_rgba_png(encoded) == first + second, f"Independent PNG filter{filter_type} control failed")
+    require(paeth(100, 0, 0) == 100, "Paeth left control failed")
+    require(paeth(0, 100, 0) == 100, "Paeth above control failed")
+    require(paeth(10, 20, 15) == 15, "Paeth upper-left control failed")
+
+
+def hermetic_probe(root):
+    """Probe only the exact generated source; this is not media-tool readiness."""
+    path = root / "synthetic-png-probe"
+    source = root / "media" / "synthetic-original.png"
+    arguments = [
+        "-v", "error", "-show_entries",
+        "format=duration,format_name:stream=codec_type,codec_name,width,height,channels,sample_rate",
+        "-of", "json", str(source),
+    ]
+    metadata = {
+        "format": {"format_name": "png_pipe"},
+        "streams": [{"codec_type": "video", "codec_name": "png", "width": 3, "height": 3}],
+    }
+    path.write_text(
+        f"#!{sys.executable}\n"
+        "import hashlib,json,sys\nfrom pathlib import Path\n"
+        f"if sys.argv[1:] != {arguments!r}: raise SystemExit(14)\n"
+        f"if hashlib.sha256(Path({str(source)!r}).read_bytes()).hexdigest() != {sha256(synthetic_png())!r}: raise SystemExit(15)\n"
+        f"print(json.dumps({metadata!r}))\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o700)
+    return str(path)
+
+
+def verify(root, bun, headless, ffmpeg, ffprobe, hermetic=False):
     exports = root / "exports"
     exports.mkdir()
     media = root / "media"
@@ -113,6 +236,8 @@ def verify(root, bun, headless, ffmpeg, ffprobe):
         return stdout[-1] if success else stderr[-1]
 
     def rgba(path):
+        if hermetic:
+            return decode_rgba_png(path.read_bytes())
         process = subprocess.run(
             [ffmpeg, "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
             capture_output=True,
@@ -168,7 +293,7 @@ def verify(root, bun, headless, ffmpeg, ffprobe):
             f"Incorrect {name} review hash",
         )
 
-    # Independently decode actual production PNGs with FFmpeg. These literal
+    # Independently decode actual production PNGs with the selected backend. These literal
     # expectations neither call nor reproduce the production transform helper.
     result = rgba(review / "result.png")
     mask = rgba(review / "mask.png")
@@ -292,7 +417,11 @@ def verify(root, bun, headless, ffmpeg, ffprobe):
 
     return {
         "passed": True,
-        "source": "source CLI, actual native headless and independent FFmpeg decoding",
+        "source": (
+            "source CLI, actual native headless, synthetic-only probe and independent stdlib PNG decoding"
+            if hermetic else "source CLI, actual native headless and independent FFmpeg decoding"
+        ),
+        "verificationMode": "hermetic" if hermetic else "genuine-media-tools",
         "root": str(root), "headlessSha256": file_sha256(Path(headless)),
         "sourceSha256": sha256(source), "derivativeSha256": manifest["resultHash"],
         "projectId": project_id, "resultAssetId": asset["id"],
@@ -310,16 +439,24 @@ def verify(root, bun, headless, ffmpeg, ffprobe):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--hermetic", action="store_true", help="Source-smoke mode: exact synthetic probe and independent stdlib PNG decoder; no media-tool readiness claim")
+    arguments = parser.parse_args()
     if sys.platform != "linux":
         print(json.dumps({"passed": False, "code": "DEPENDENCY_UNAVAILABLE", "reason": "Artwork file-review acceptance requires Linux"}))
         return 2
     bun = executable(os.environ.get("OPENCUT_BUN_PATH", os.environ.get("BUN", "bun")))
     headless = executable(os.environ.get("OPENCUT_TEST_HEADLESS_PATH") or os.environ.get("OPENCUT_HEADLESS_PATH") or REPOSITORY / "target/debug/opencut-headless")
-    ffmpeg = executable(os.environ.get("OPENCUT_FFMPEG_PATH", "ffmpeg"))
-    ffprobe = executable(os.environ.get("OPENCUT_FFPROBE_PATH", "ffprobe"))
     root = Path(tempfile.mkdtemp(prefix="opencut-artwork-acceptance-"))
+    if arguments.hermetic:
+        verify_independent_decoder()
+        ffmpeg = str(root / "unused-ffmpeg-not-a-renderer")
+        ffprobe = hermetic_probe(root)
+    else:
+        ffmpeg = executable(os.environ.get("OPENCUT_FFMPEG_PATH", "ffmpeg"))
+        ffprobe = executable(os.environ.get("OPENCUT_FFPROBE_PATH", "ffprobe"))
     try:
-        evidence = verify(root, bun, headless, ffmpeg, ffprobe)
+        evidence = verify(root, bun, headless, ffmpeg, ffprobe, arguments.hermetic)
     except Exception:
         print(json.dumps({"passed": False, "root": str(root)}), file=sys.stderr)
         raise
