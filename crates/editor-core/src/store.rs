@@ -1,4 +1,9 @@
+mod channel_style_packs;
 mod narration_profiles;
+pub use channel_style_packs::{
+    ChannelAppliedCaptionRole, ChannelAppliedComponent, ChannelCaptureResult,
+    ChannelPackApplyResult, ChannelPackList,
+};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -989,6 +994,19 @@ impl EditorCore {
         operations: Vec<BatchEditOperation>,
         is_batch: bool,
     ) -> Result<WriteResult, CoreError> {
+        self.edit_with_staged_change(project_id, expected_revision, is_batch, |prepared, _dir| {
+            Ok((apply_edit_batch(&mut prepared.project, operations)?, ()))
+        })
+        .map(|(result, ())| result)
+    }
+
+    fn edit_with_staged_change<R>(
+        &self,
+        project_id: &str,
+        expected_revision: u64,
+        is_batch: bool,
+        apply: impl FnOnce(&mut PreparedProject, &Path) -> Result<(AppliedBatch, R), CoreError>,
+    ) -> Result<(WriteResult, R), CoreError> {
         let dir = self.existing_project_dir(project_id)?;
         let _lock = self.storage.lock_exclusive(&dir)?;
         let mut rollback = crate::assets::UncommittedResources::default();
@@ -1002,11 +1020,14 @@ impl EditorCore {
                 Some(&mut rollback),
             )?;
             let previous = prepared.project.clone();
-            let AppliedBatch {
-                changed_ids,
-                aliases,
-                summary,
-            } = apply_edit_batch(&mut prepared.project, operations)?;
+            let (
+                AppliedBatch {
+                    changed_ids,
+                    aliases,
+                    summary,
+                },
+                extra,
+            ) = apply(&mut prepared, &dir)?;
             crate::assets::fonts::prepare_fonts(
                 self.storage.as_ref(),
                 &dir,
@@ -1067,7 +1088,7 @@ impl EditorCore {
                 &prepared.history,
                 warnings,
             );
-            Ok(result)
+            Ok((result, extra))
         })();
         edit.map_err(|mut error: CoreError| {
             if let Err(cleanup) = rollback.rollback(self.storage.as_ref()) {

@@ -9,6 +9,7 @@ license.workspace = true
 raster-cache-test-hooks = []
 
 [dependencies]
+base64 = "=0.22.1"
 quick-xml = { version = "=0.39.4", default-features = false }
 fs2 = { workspace = true }
 serde = { workspace = true }

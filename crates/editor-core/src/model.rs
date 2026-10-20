@@ -8,6 +8,8 @@ mod master_normalization;
 pub use master_normalization::*;
 mod narration_profiles;
 pub use narration_profiles::*;
+mod channel_style_packs;
+pub use channel_style_packs::*;
 mod speech_alignment;
 pub use speech_alignment::*;
 mod animation_channels;

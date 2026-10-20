@@ -12,6 +12,12 @@
   },
   "operations": [
     "analyze_audio",
+    "channel_pack_apply",
+    "channel_pack_capture",
+    "channel_pack_get",
+    "channel_pack_import",
+    "channel_pack_list",
+    "channel_pack_update",
     "commit_draft",
     "commit_generated_asset",
     "commit_transcription",
