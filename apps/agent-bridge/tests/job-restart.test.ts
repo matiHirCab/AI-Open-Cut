@@ -185,8 +185,14 @@ setInterval(() => undefined, 1000);`
     () => "unexpected success",
     (error: unknown) => error
   );
-  await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true));
-  const pid = Number(readFileSync(pidFile, "utf8"));
+  const [child] = children.keys();
+  if (!child?.pid || children.size !== 1) {
+    throw new Error("Expected exactly one owned live fixture PID");
+  }
+  const { pid } = child;
+  await vi.waitFor(() =>
+    expect(readFileSync(pidFile, "utf8")).toBe(String(pid))
+  );
   expect(() => process.kill(pid, 0)).not.toThrow();
   await closeFixtures();
   expect(await pending).toBeInstanceOf(Error);

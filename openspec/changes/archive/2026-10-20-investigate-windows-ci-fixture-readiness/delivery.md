@@ -10,3 +10,5 @@ Status before publication: prepared; no remote branch or PR mutation yet. User a
 6. Update this PR's metadata with actual published SHA and terminal outcomes. Deliver links/evidence/blockers; do not claim main repaired before incorporation. No merge, auto-merge or deployment.
 
 This checklist separates postarchive publication/CI acceptance from implementation tasks so the required archive-only gate can be validated before publication. Prepared checklist completion does not mean future remote operations or CI outcomes have already happened.
+
+Follow-up publication: preserve observed first-head Windows correctness, both Motion workflows and focused startup success before pushing the complete-PID-control follow-up. Normal supersession may cancel obsolete first-head jobs still running; list those separately, without treating them as successful or final-head evidence. Monitor every final-head check/workflow to terminal and report its exact SHA, including any failure/skip/blocker. This refinement changes delivery timing only, never the required checks, assertions, limits or acceptance threshold.
