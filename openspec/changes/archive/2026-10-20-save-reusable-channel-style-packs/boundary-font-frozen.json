@@ -1,0 +1,9 @@
+{
+  "sha256": "1dbf5fcce68a4b5edf499635a972ebcb45fe3c4f6292bd2c9594a26f57cbc8d7",
+  "sizeBytes": 4004,
+  "sourceSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+  "authoringTool": "FontTools4.61.1",
+  "glyph": "A",
+  "family": "OpenCut Boundary Test",
+  "license": "crates/editor-core/tests/fixtures/fonts/LICENSE.txt"
+}

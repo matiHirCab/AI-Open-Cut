@@ -1,4 +1,5 @@
 import type { z } from "zod/v4";
+import type { ChannelRequest } from "./channel-packs/contract";
 import type { GridDescriptor } from "./procedural-grids";
 import type { RepeaterDescriptor } from "./repeaters";
 import type {
@@ -384,6 +385,7 @@ export type HeadlessEdit =
   | { operation: "set_item_visibility"; hidden: boolean; itemId: string };
 
 export type HeadlessRequest =
+  | ChannelRequest
   | { operation: "narration_profile_list" }
   | { operation: "narration_profile_get"; profileId: string }
   | {

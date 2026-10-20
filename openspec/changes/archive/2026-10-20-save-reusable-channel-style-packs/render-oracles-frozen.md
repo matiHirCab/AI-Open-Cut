@@ -1,0 +1,2 @@
+Independent font/artwork input hashes frozen directly from existing licensed resources and original stdlib-generated PNG, before workflow test or renderer assembly. No runtime output supplied these expectations. Canonical fixture SHA256: b9e011510bbfb130e8f7731268d81d4eec2f6a170f311b7f574d83f582471a52
+The initial minimal portable fixture hash remains in frozen-fixture-sha256.txt; this extension adds only independent rendering input evidence.

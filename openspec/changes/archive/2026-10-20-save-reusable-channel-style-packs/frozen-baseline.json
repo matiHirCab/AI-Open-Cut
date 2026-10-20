@@ -1,0 +1,50 @@
+{
+  "timestamp": "2026-10-19T16:37:40.203952+00:00",
+  "baseCommit": "756b7b39ce0e2b1d5fcc65291084838da5331517",
+  "baseTree": "1578cb5270dd6892b4234799ec85c186ec20d4b6",
+  "purpose": "Planning-only frozen predecessor evidence before executable/contract/test/dependency edits. Raw copies outside repository; no historical repinning. Canonical fixture requires approved wire shapes first.",
+  "inputs": [
+    {
+      "path": "contracts/contract-ownership-v1.json",
+      "bytes": 88914,
+      "sha256": "c18848381e0125a1fd59603314882584af3679b0831f8fb8cdfdbd4c8d8226d5",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__contract-ownership-v1.json"
+    },
+    {
+      "path": "contracts/contract-ownership-v1.json [compact normalization, not raw predecessor]",
+      "bytes": 73362,
+      "sha256": "6bbfce1d3fb0ecfe71c9bda286801926ae0d683adc215dbd72ee077a32a93f0a",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__contract-ownership-v1.json.compact"
+    },
+    {
+      "path": "contracts/headless-protocol-v1.json",
+      "bytes": 12944,
+      "sha256": "0a6e740abb64995d581d33bec99ce30fb6cd981fd357fe80374e65b39ba25bdb",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__headless-protocol-v1.json"
+    },
+    {
+      "path": "contracts/headless-protocol-v1.json [compact normalization, not raw predecessor]",
+      "bytes": 8497,
+      "sha256": "5b6dfb0d5d314a0a69d42b8a512d3088c3e96f4e0837efcc9b5c1e46d25186fd",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__headless-protocol-v1.json.compact"
+    },
+    {
+      "path": "contracts/narration-profiles-v1.json",
+      "bytes": 1215,
+      "sha256": "fb38327d1e18a60386df088a10c729c511fc522d7354072ce02c9e62c3361ab1",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__narration-profiles-v1.json"
+    },
+    {
+      "path": "contracts/narration-profiles-v1.json [compact normalization, not raw predecessor]",
+      "bytes": 920,
+      "sha256": "eb09a95da7f63bd3977d8b5f298480218c6299cbf6cc0dc76ce423218f282a8f",
+      "snapshot": "/tmp/opencut-211-frozen/contracts__narration-profiles-v1.json.compact"
+    },
+    {
+      "path": "apps/agent-bridge/tests/fixtures/short-candidates-predecessor-ownership.raw",
+      "bytes": 88028,
+      "sha256": "5febc40dd7b61404226d263058fe628b27dd1e72297f0d3f8aead30c4bb4f4fe",
+      "snapshot": "/tmp/opencut-211-frozen/apps__agent-bridge__tests__fixtures__short-candidates-predecessor-ownership.raw"
+    }
+  ]
+}

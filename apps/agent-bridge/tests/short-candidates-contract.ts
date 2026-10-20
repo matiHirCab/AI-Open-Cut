@@ -23,6 +23,7 @@ import {
   shortPlanningSuccessSchema,
 } from "../src/short-candidates/contract";
 import { planShortCandidates } from "../src/short-candidates/planner";
+import { restoreChannelPackRaw } from "./fixtures/channel-packs-projection";
 import {
   assertShortPlanningOwnership,
   removeShortPlanningOwnership,
@@ -143,9 +144,12 @@ export const verifyShortPlanningContract = () => {
         .success
     ).toBe(false);
   }
-  const current = readFileSync(
-    new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
-    "utf8"
+  const current = restoreChannelPackRaw(
+    readFileSync(
+      new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
+      "utf8"
+    ),
+    "contract-ownership-v1"
   );
   const raw = readFileSync(
     new URL(
@@ -159,9 +163,11 @@ export const verifyShortPlanningContract = () => {
   );
   expect(restoreShortPlanningOwnershipRaw(current)).toBe(raw);
   expect(restoreShortPlanningOwnershipRaw(raw)).toBe(raw);
-  expect(restoreShortPlanningOwnershipRaw(JSON.stringify(ownership))).toBe(
-    JSON.stringify(JSON.parse(raw))
-  );
+  expect(
+    restoreShortPlanningOwnershipRaw(
+      restoreChannelPackRaw(JSON.stringify(ownership), "contract-ownership-v1")
+    )
+  ).toBe(JSON.stringify(JSON.parse(raw)));
   const compactDrift = structuredClone(ownership);
   compactDrift.categories.artifactDelivery.canonical = "foreign.json";
   const restoredDrift = restoreShortPlanningOwnershipRaw(

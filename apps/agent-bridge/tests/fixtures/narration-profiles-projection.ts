@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  removeChannelPackAdditions,
+  restoreChannelPackRaw,
+} from "./channel-packs-projection";
 import additions from "./narration-profiles-additions.json";
 import markerPins from "./narration-profiles-marker-pins.json";
 import {
@@ -34,7 +38,11 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  const result = removeShortPlanningOwnership(source, copy);
+  const base = copy ? structuredClone(source) : source;
+  const result = removeShortPlanningOwnership(
+    removeChannelPackAdditions(base, name, false),
+    false
+  );
   const changes: Change[] = additions[name];
   let present: boolean;
   if (name === "mcp-surface-v1") {
@@ -90,6 +98,15 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
 };
 
 export const restoreNarrationProfileRaw = (input: string): string => {
+  const document: unknown = JSON.parse(input);
+  const catalog =
+    document && typeof document === "object" && "categories" in document
+      ? "contract-ownership-v1"
+      : "headless-protocol-v1";
+  const withoutChannel = restoreChannelPackRaw(input, catalog);
+  if (withoutChannel !== input) {
+    return restoreNarrationProfileRaw(withoutChannel);
+  }
   const previous = restoreShortPlanningOwnershipRaw(input);
   if (previous !== input) {
     return restoreNarrationProfileRaw(previous);

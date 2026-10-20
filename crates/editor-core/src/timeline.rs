@@ -913,17 +913,7 @@ fn apply_operation_inner(
                         .and_then(|old| old.font_binding.clone());
                 }
             }
-            let locked: Vec<_> = current.tracks.iter().filter(|t| t.locked).collect();
-            let retained: Vec<_> = tracks
-                .iter()
-                .filter(|t| locked.iter().any(|v| v.id == t.id))
-                .collect();
-            if serde_json::to_value(&locked)? != serde_json::to_value(&retained)? {
-                return Err(CoreError::new(
-                    ErrorCode::TrackLocked,
-                    "component update alters locked tracks",
-                ));
-            }
+            validate_component_track_locks(&current.tracks, &tracks)?;
             let slots = slots.unwrap_or_else(|| current.slots.clone());
             validate_slot_locks(current, &slots)?;
             *current = crate::ComponentDefinition {
@@ -2287,6 +2277,26 @@ pub(crate) fn validate_operations_against(
         apply_operation_in_batch(&mut candidate, operation)?;
     }
     crate::validation::matte::validate_project(&candidate)?;
+    Ok(())
+}
+
+/// Shared by ordinary replacement and trusted resource attachment. Comparing the
+/// final candidate prevents a managed-font-only change from bypassing a lock.
+pub(crate) fn validate_component_track_locks(
+    current: &[Track],
+    tracks: &[Track],
+) -> Result<(), CoreError> {
+    let locked: Vec<_> = current.iter().filter(|track| track.locked).collect();
+    let retained: Vec<_> = tracks
+        .iter()
+        .filter(|track| locked.iter().any(|old| old.id == track.id))
+        .collect();
+    if serde_json::to_value(&locked)? != serde_json::to_value(&retained)? {
+        return Err(CoreError::new(
+            ErrorCode::TrackLocked,
+            "component update alters locked tracks",
+        ));
+    }
     Ok(())
 }
 

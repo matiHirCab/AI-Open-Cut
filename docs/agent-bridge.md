@@ -224,3 +224,7 @@ The guidance requires missing-reference resolution before editing, atomic rollba
 ### Job restart contract
 
 The bridge advertises `ephemeral_jobs_v1`. Jobs/results/tokens are process-local; `JOB_NOT_FOUND` after restart does not prove an atomic project commit or export failed. New producer admission fails closed after a crash until operator reconciliation of the exclusive TTS-work-root marker. Read [job restart and reconciliation](job-restart.md) for safe client retries, runtime ownership and conservative crash recovery.
+
+## Channel pack source workflow
+
+See [reusable channel style packs](channel-style-packs.md) for explicit capture, portable import/export and independent native application through the experimental source CLI. Existing MCP and desktop interfaces retain their documented behavior.

@@ -1785,6 +1785,48 @@
         "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
       ]
     },
+    "channelStylePacks": {
+      "canonical": "contracts/channel-style-packs-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/channel_style_packs.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/store/channel_style_packs/mod.rs",
+        "crates/editor-core/src/store/channel_style_packs/portable.rs",
+        "crates/editor-core/src/store/channel_style_packs/capture.rs",
+        "crates/editor-core/src/store/channel_style_packs/apply.rs",
+        "crates/editor-core/src/store/channel_style_packs/apply/remap.rs",
+        "crates/editor-core/src/store/channel_style_packs/tests.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/timeline.rs",
+        "crates/editor-core/tests/channel_style_packs.rs",
+        "apps/headless/src/main.rs",
+        "apps/headless/tests/protocol.rs",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/src/channel-packs/contract.ts",
+        "apps/agent-bridge/src/channel-packs/cli.ts",
+        "apps/agent-bridge/src/channel-packs-cli.ts",
+        "apps/agent-bridge/tests/channel-packs.test.ts",
+        "apps/agent-bridge/tests/channel-packs-contract.ts",
+        "apps/agent-bridge/tests/channel-packs-workflow.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "apps/agent-bridge/tests/short-candidates-contract.ts",
+        "apps/agent-bridge/tests/fixtures/channel-packs-projection.ts",
+        "apps/agent-bridge/tests/fixtures/channel-packs-predecessor-ownership.raw",
+        "apps/agent-bridge/tests/fixtures/channel-packs-predecessor-headless.raw",
+        "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+        "apps/agent-bridge/package.json",
+        "scripts/validate-ci-gates.ts",
+        "scripts/validate-ci-gates.test.ts",
+        "docs/channel-style-packs.md",
+        "docs/agent-bridge.md",
+        "docs/adr/0003-editor-core-module-boundaries.md",
+        ".github/workflows/bun-ci.yml",
+        "scripts/channel-pack-workflow-projection.ts",
+        "scripts/motion-release-policy.test.ts",
+        "crates/editor-core/tests/fixtures/fonts/OpenCutBoundaryTest.ttf",
+        "crates/editor-core/tests/fixtures/fonts/README.md"
+      ]
+    },
     "sourceGroundedShortPlanning": {
       "canonical": "contracts/short-candidate-planning-cli-v1.json",
       "consumers": [
