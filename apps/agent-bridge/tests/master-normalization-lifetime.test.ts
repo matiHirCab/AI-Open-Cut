@@ -37,6 +37,12 @@ const nativeBinary = join(
     ? "normalization-lifetime.exe"
     : "normalization-lifetime"
 );
+const nativePublicationTests = join(
+  nativeRoot,
+  process.platform === "win32"
+    ? "normalization-publication-tests.exe"
+    : "normalization-publication-tests"
+);
 beforeAll(() => {
   const built = spawnSync(
     "rustc",
@@ -54,6 +60,21 @@ beforeAll(() => {
   );
   expect(built.error, built.stderr).toBeUndefined();
   expect(built.status, built.stderr).toBe(0);
+  const testBuilt = spawnSync(
+    "rustc",
+    [
+      "--edition=2024",
+      "-D",
+      "warnings",
+      "--test",
+      resolve(import.meta.dirname, "fixtures/normalization-lifetime-native.rs"),
+      "-o",
+      nativePublicationTests,
+    ],
+    { encoding: "utf8", timeout: 20_000, windowsHide: true }
+  );
+  expect(testBuilt.error, testBuilt.stderr).toBeUndefined();
+  expect(testBuilt.status, testBuilt.stderr).toBe(0);
 }, 30_000);
 afterAll(async () => {
   await rm(nativeRoot, {
@@ -193,8 +214,12 @@ const requirePhaseEntry = async (
     await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), {
       timeout: 1500,
     });
+    return JSON.parse(readFileSync(pidFile, "utf8")) as {
+      backend: number;
+      descendant: number;
+    };
   } catch (error) {
-    // Settle only this failed request and rethrow the original assertion.
+    // Settle only this failed request and rethrow the original readiness error.
     controller.abort();
     const settled = await outcome;
     const eventsPath = join(dir, ".normalization-phase-events.jsonl");
@@ -209,10 +234,6 @@ const requirePhaseEntry = async (
     });
     throw error;
   }
-  return JSON.parse(readFileSync(pidFile, "utf8")) as {
-    backend: number;
-    descendant: number;
-  };
 };
 
 describe("controlled normalization phase lifetime", () => {
@@ -407,6 +428,92 @@ it("requires a direct native lifetime fixture and rejects unsupported arguments"
   expect(invalid.error).toBeUndefined();
   expect(invalid.status).toBe(2);
   expect(invalid.stdout).toBe("");
+});
+
+it("publishes complete native PID records and refuses staging and rename failures", () => {
+  const checked = spawnSync(nativePublicationTests, [], {
+    encoding: "utf8",
+    timeout: 1000,
+    windowsHide: true,
+  });
+  expect(checked.error, checked.stderr).toBeUndefined();
+  expect(checked.status, checked.stderr).toBe(0);
+  expect(checked.stdout).toContain("3 passed; 0 failed");
+});
+
+it("rejects malformed published PIDs after settling only the owned request", async () => {
+  const { dir, client, request, persisted } = await create();
+  const before = persisted();
+  await client.call(request, audioAnalysisResultSchema);
+  const previews = join(dir, "previews");
+  const completedOutputs = Object.fromEntries(
+    readdirSync(previews).map((name) => [
+      name,
+      readFileSync(join(previews, name)),
+    ])
+  );
+  writeFileSync(join(dir, ".normalization-test-phase"), "capture");
+  const controller = new AbortController();
+  const outcome = client
+    .call(request, audioAnalysisResultSchema, { signal: controller.signal })
+    .then(
+      () => ({ code: "UNEXPECTED_SUCCESS" }),
+      (error: unknown) => error
+    );
+  const pids = await requirePhaseEntry(
+    dir,
+    "capture",
+    "malformed_fixture_setup",
+    controller,
+    outcome
+  );
+  expect(() => process.kill(pids.backend, 0)).not.toThrow();
+  expect(() => process.kill(pids.descendant, 0)).not.toThrow();
+  writeFileSync(
+    join(dir, ".normalization-test-malformed_fixture_phase.pid"),
+    '{"backend":'
+  );
+  const diagnostic = vi
+    .spyOn(console, "warn")
+    .mockImplementation(() => undefined);
+  try {
+    await expect(
+      requirePhaseEntry(
+        dir,
+        "malformed_fixture_phase",
+        "malformed_fixture_refusal",
+        controller,
+        outcome
+      )
+    ).rejects.toBeInstanceOf(SyntaxError);
+    expect(controller.signal.aborted).toBe(true);
+    expect(await outcome).toMatchObject({ code: "JOB_CANCELLED" });
+    expect(diagnostic).toHaveBeenCalledOnce();
+    expect(diagnostic).toHaveBeenCalledWith("normalization readiness failure", {
+      events: expect.any(String),
+      mode: "malformed_fixture_refusal",
+      outcome: "JOB_CANCELLED",
+      phase: "malformed_fixture_phase",
+    });
+    await vi.waitFor(() => {
+      expect(() => process.kill(pids.backend, 0)).toThrow();
+      expect(() => process.kill(pids.descendant, 0)).toThrow();
+    });
+    expect(persisted()).toEqual(before);
+    expect(
+      readdirSync(dir).filter((name) => name.startsWith(".opencut-work-"))
+    ).toEqual([]);
+    expect(
+      Object.fromEntries(
+        readdirSync(previews).map((name) => [
+          name,
+          readFileSync(join(previews, name)),
+        ])
+      )
+    ).toEqual(completedOutputs);
+  } finally {
+    diagnostic.mockRestore();
+  }
 });
 
 it("refuses missing native phase entry with actual phase/outcome diagnostics", async () => {
