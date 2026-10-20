@@ -178,6 +178,7 @@ fn schema_23_migrates_current_and_history_and_rejects_backdated_markers() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(23);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     old.as_object_mut().unwrap().remove("markers");
@@ -202,6 +203,7 @@ fn schema_23_migrates_current_and_history_and_rejects_backdated_markers() {
         let current = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         let mut bad = current.clone();
         bad["schemaVersion"] = json!(23);
+        bad.as_object_mut().unwrap().remove("narrationManifests");
         bad.as_object_mut().unwrap().remove("audioBuses");
         bad.as_object_mut().unwrap().remove("soundDefinitions");
         bad["markers"] = json!([{"id":"m1","name":"hit","scope":"root","timeMs":1,"kind":"cue"}]);

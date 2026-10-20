@@ -6,6 +6,8 @@ mod audio_buses;
 pub use audio_buses::*;
 mod master_normalization;
 pub use master_normalization::*;
+mod narration_blocks;
+pub use narration_blocks::*;
 mod narration_profiles;
 pub use narration_profiles::*;
 mod channel_style_packs;
@@ -44,7 +46,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 46;
+pub const PROJECT_SCHEMA_VERSION: u32 = 47;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -88,6 +90,7 @@ where
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[serde(try_from = "ProjectDocument")]
 pub struct Project {
+    pub narration_manifests: Vec<NarrationManifest>,
     pub master_normalization: Option<MasterNormalization>,
     pub sound_definitions: Vec<SoundEventDefinition>,
     pub audio_buses: Vec<AudioBus>,
@@ -120,8 +123,12 @@ impl Serialize for Project {
                 11
             } else {
                 10
-            }) + usize::from(self.master_normalization.is_some()),
+            }) + usize::from(self.master_normalization.is_some())
+                + usize::from(self.schema_version >= 47),
         )?;
+        if self.schema_version >= 47 {
+            state.serialize_field("narrationManifests", &self.narration_manifests)?;
+        }
         if self.schema_version >= 40 {
             state.serialize_field("soundDefinitions", &self.sound_definitions)?;
         }
@@ -156,6 +163,8 @@ impl Serialize for Project {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ProjectDocument {
     #[serde(default, deserialize_with = "deserialize_double_option")]
+    narration_manifests: Option<Option<Vec<NarrationManifest>>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
     master_normalization: Option<Option<MasterNormalization>>,
     #[serde(default, deserialize_with = "deserialize_double_option")]
     sound_definitions: Option<Option<Vec<SoundEventDefinition>>>,
@@ -182,6 +191,17 @@ impl TryFrom<ProjectDocument> for Project {
     type Error = String;
 
     fn try_from(mut value: ProjectDocument) -> Result<Self, Self::Error> {
+        if value.schema_version < 47 && value.narration_manifests.is_some() {
+            return Err("narration manifests require schema47".into());
+        }
+        if value.schema_version >= 47
+            && value
+                .narration_manifests
+                .as_ref()
+                .is_none_or(Option::is_none)
+        {
+            return Err("schema47 requires narrationManifests array".into());
+        }
         if value.master_normalization.is_some() && value.schema_version < 44 {
             return Err("master normalization requires schema44".into());
         }
@@ -525,6 +545,7 @@ impl TryFrom<ProjectDocument> for Project {
             }
         }
         let project = Self {
+            narration_manifests: value.narration_manifests.flatten().unwrap_or_default(),
             master_normalization: value.master_normalization.flatten(),
             sound_definitions: value.sound_definitions.flatten().unwrap_or_default(),
             audio_buses: value.audio_buses.flatten().unwrap_or_default(),
@@ -3874,6 +3895,7 @@ mod tests {
         assert_eq!(legacy.request.text_options, SpeechTextOptions::default());
 
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),

@@ -608,6 +608,15 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
         project["schemaVersion"] = version.clone();
         if project["schemaVersion"]
             .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            project
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
+        }
+        if project["schemaVersion"]
+            .as_u64()
             .is_some_and(|version| version < 39)
         {
             project.as_object_mut().unwrap().remove("audioBuses");
@@ -623,6 +632,12 @@ fn all_supported_current_and_mixed_history_migrate_atomically() {
                 .map(|v| {
                     let mut s = project.clone();
                     s["schemaVersion"] = v.clone();
+                    if s["schemaVersion"]
+                        .as_u64()
+                        .is_some_and(|version| version < 47)
+                    {
+                        s.as_object_mut().unwrap().remove("narrationManifests");
+                    }
                     if s["schemaVersion"]
                         .as_u64()
                         .is_some_and(|version| version < 39)
@@ -682,6 +697,12 @@ fn invalid_current_and_retained_components_never_rewrite() {
         for version in [0, 12, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = original.clone();
             bad["schemaVersion"] = json!(version);
+            if bad["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 47)
+            {
+                bad.as_object_mut().unwrap().remove("narrationManifests");
+            }
             if bad["schemaVersion"]
                 .as_u64()
                 .is_some_and(|version| version < 39)
@@ -824,6 +845,7 @@ fn canonical_component_item_validation_is_atomic_at_every_core_boundary() {
         let mut bad = original.clone();
         bad["components"][0]["tracks"] = value["tracks"].clone();
         bad["schemaVersion"] = json!(18);
+        bad.as_object_mut().unwrap().remove("narrationManifests");
         bad.as_object_mut().unwrap().remove("audioBuses");
         bad.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut bad);

@@ -321,6 +321,10 @@ fn provenance_null_missing_curve_or_premature_field_is_not_defaulted() {
     assert!(serde_json::from_value::<opencut_editor_core::Project>(invalid).is_err());
     let mut invalid = saved;
     invalid["schemaVersion"] = json!(28);
+    invalid
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     invalid.as_object_mut().unwrap().remove("audioBuses");
     invalid.as_object_mut().unwrap().remove("soundDefinitions");
     invalid["tracks"][1]["items"][0]["animationPresetProvenance"] = json!({});
@@ -799,11 +803,19 @@ fn schema_28_migrates_current_components_and_all_history_once() {
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(28);
+    current
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     current.as_object_mut().unwrap().remove("audioBuses");
     current.as_object_mut().unwrap().remove("soundDefinitions");
     for snapshots in ["undo", "redo"] {
         for snapshot in history[snapshots].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(28);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             snapshot.as_object_mut().unwrap().remove("audioBuses");
             snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -819,12 +831,22 @@ fn schema_28_migrates_current_components_and_all_history_once() {
     )
     .unwrap();
     current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    current
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     current["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     current["soundDefinitions"] = json!([]);
     for snapshots in ["undo", "redo"] {
         for snapshot in history[snapshots].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .entry("narrationManifests")
+                .or_insert_with(|| serde_json::json!([]));
             snapshot["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             snapshot["soundDefinitions"] = json!([]);
@@ -1217,6 +1239,10 @@ fn malformed_identity_or_orphan_source_and_premature_retained_fields_fail_closed
                     .unwrap()
             };
             candidate["schemaVersion"] = json!(28);
+            candidate
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             candidate.as_object_mut().unwrap().remove("audioBuses");
             candidate
                 .as_object_mut()
@@ -1403,12 +1429,17 @@ fn final_scene_budget_failure_rolls_back_preset_alias_and_existing_draft() {
                     serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
                 if name == "project.json" {
                     value["schemaVersion"] = json!(28);
+                    value.as_object_mut().unwrap().remove("narrationManifests");
                     value.as_object_mut().unwrap().remove("audioBuses");
                     value.as_object_mut().unwrap().remove("soundDefinitions");
                 } else {
                     for kind in ["undo", "redo"] {
                         for snapshot in value[kind].as_array_mut().unwrap() {
                             snapshot["schemaVersion"] = json!(28);
+                            snapshot
+                                .as_object_mut()
+                                .unwrap()
+                                .remove("narrationManifests");
                             snapshot.as_object_mut().unwrap().remove("audioBuses");
                             snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                         }
@@ -1524,11 +1555,19 @@ fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejectio
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(28);
+    current
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     current.as_object_mut().unwrap().remove("audioBuses");
     current.as_object_mut().unwrap().remove("soundDefinitions");
     for list in ["undo", "redo"] {
         for snapshot in history[list].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(28);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             snapshot.as_object_mut().unwrap().remove("audioBuses");
             snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -1544,6 +1583,11 @@ fn legacy_slot_named_animation_preset_provenance_migrates_without_false_rejectio
     )
     .unwrap();
     current["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    current
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     current["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     current["soundDefinitions"] = json!([]);
@@ -1559,6 +1603,7 @@ fn legacy_invalid_preset_does_not_publish_schema_migration() {
     let dir = core.paths().project_dir(&project).unwrap();
     let mut doc = state(&core, &project);
     doc["schemaVersion"] = json!(28);
+    doc.as_object_mut().unwrap().remove("narrationManifests");
     doc.as_object_mut().unwrap().remove("audioBuses");
     doc.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&doc).unwrap()).unwrap();
@@ -1567,6 +1612,7 @@ fn legacy_invalid_preset_does_not_publish_schema_migration() {
     for k in ["undo", "redo"] {
         for snap in hist[k].as_array_mut().unwrap() {
             snap["schemaVersion"] = json!(28);
+            snap.as_object_mut().unwrap().remove("narrationManifests");
             snap.as_object_mut().unwrap().remove("audioBuses");
             snap.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -1597,6 +1643,7 @@ fn legacy_failed_alias_batch_does_not_publish_schema_migration() {
     let dir = core.paths().project_dir(&project).unwrap();
     let mut doc = state(&core, &project);
     doc["schemaVersion"] = json!(28);
+    doc.as_object_mut().unwrap().remove("narrationManifests");
     doc.as_object_mut().unwrap().remove("audioBuses");
     doc.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&doc).unwrap()).unwrap();
@@ -1605,6 +1652,7 @@ fn legacy_failed_alias_batch_does_not_publish_schema_migration() {
     for k in ["undo", "redo"] {
         for snap in hist[k].as_array_mut().unwrap() {
             snap["schemaVersion"] = json!(28);
+            snap.as_object_mut().unwrap().remove("narrationManifests");
             snap.as_object_mut().unwrap().remove("audioBuses");
             snap.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -1910,6 +1958,10 @@ fn motion_pack_descriptive_retirement_membership_and_premature_generations_fail_
         }
         let mut premature = saved.clone();
         premature["schemaVersion"] = json!(29);
+        premature
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
         premature.as_object_mut().unwrap().remove("audioBuses");
         premature
             .as_object_mut()
@@ -1975,6 +2027,10 @@ fn motion_pack_schema29_component_and_retained_sources_fail_without_writes() {
                         .unwrap()
                 };
                 candidate["schemaVersion"] = json!(29);
+                candidate
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 candidate.as_object_mut().unwrap().remove("audioBuses");
                 candidate
                     .as_object_mut()
@@ -2052,6 +2108,10 @@ fn motion_pack_schema29_scalar_current_components_and_history_migrate_once_witho
             .flat_map(|snapshots| snapshots.iter_mut()),
     ) {
         document["schemaVersion"] = json!(29);
+        document
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
         document.as_object_mut().unwrap().remove("audioBuses");
         document.as_object_mut().unwrap().remove("soundDefinitions");
         if !document["tracks"][1]["items"]
@@ -2080,12 +2140,22 @@ fn motion_pack_schema29_scalar_current_components_and_history_migrate_once_witho
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     let mut expected = before;
     expected[0]["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    expected[0]
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     expected[0]["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     expected[0]["soundDefinitions"] = json!([]);
     for stack in ["undo", "redo"] {
         for snapshot in expected[1][stack].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .entry("narrationManifests")
+                .or_insert_with(|| serde_json::json!([]));
             snapshot["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             snapshot["soundDefinitions"] = json!([]);
@@ -2468,6 +2538,10 @@ fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generati
         core.edit(&project, 2, op(request(&scalar_id))).unwrap();
         let mut older_scalar = state(&core, &project);
         older_scalar["schemaVersion"] = json!(29);
+        older_scalar
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
         older_scalar.as_object_mut().unwrap().remove("audioBuses");
         older_scalar
             .as_object_mut()
@@ -2477,6 +2551,7 @@ fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generati
             .unwrap();
         let mut source = state(&core, &project);
         source["schemaVersion"] = json!(30);
+        source.as_object_mut().unwrap().remove("narrationManifests");
         source.as_object_mut().unwrap().remove("audioBuses");
         source.as_object_mut().unwrap().remove("soundDefinitions");
         let mut local_track = source["tracks"][1].clone();
@@ -2498,6 +2573,11 @@ fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generati
         let migrated = state(&reopened, &project);
         let mut expected = source.clone();
         expected["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+        expected
+            .as_object_mut()
+            .unwrap()
+            .entry("narrationManifests")
+            .or_insert_with(|| serde_json::json!([]));
         expected["audioBuses"] =
             serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
         expected["soundDefinitions"] = json!([]);
@@ -2506,6 +2586,11 @@ fn schema30_pack_and_scalar_adapter_preserves_every_source_and_retained_generati
         for kind in ["undo", "redo"] {
             for snapshot in expected_history[kind].as_array_mut().unwrap() {
                 snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+                snapshot
+                    .as_object_mut()
+                    .unwrap()
+                    .entry("narrationManifests")
+                    .or_insert_with(|| serde_json::json!([]));
                 snapshot["audioBuses"] =
                     serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
                 snapshot["soundDefinitions"] = json!([]);

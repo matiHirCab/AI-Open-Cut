@@ -73,7 +73,7 @@ impl EditorCore {
             &input.project_id,
             input.expected_revision,
             true,
-            |prepared, _dir| {
+            |prepared, _dir, _rollback| {
                 let original = prepared.project.clone();
                 let images =
                     self.resolve_channel_images(&input, &pack.package, &prepared.project)?;

@@ -40,6 +40,9 @@ fn project_with_timing(schema_version: u32) -> Value {
     if schema_version >= 40 {
         value["soundDefinitions"] = json!([]);
     }
+    if schema_version >= 47 {
+        value["narrationManifests"] = json!([]);
+    }
     value
 }
 

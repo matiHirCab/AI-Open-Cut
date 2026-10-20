@@ -263,6 +263,7 @@ fn schema40_populated_library_adopts_without_erasure_and_legacy_forgery_fails() 
     let path = root.path().join("projects").join(&id).join("project.json");
     let mut raw: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     raw["schemaVersion"] = json!(40);
+    raw.as_object_mut().unwrap().remove("narrationManifests");
     std::fs::write(&path, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
     let original = raw["soundDefinitions"].clone();
     core.get_project(&id).unwrap();
@@ -281,6 +282,7 @@ fn schema40_populated_library_adopts_without_erasure_and_legacy_forgery_fails() 
     assert_eq!(media(&core, &id, &track).asset_id, assets[1]);
     let mut raw: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     raw["schemaVersion"] = json!(40);
+    raw.as_object_mut().unwrap().remove("narrationManifests");
     std::fs::write(&path, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
     let before = inventory(root.path());
     assert!(core.get_project(&id).is_err());
@@ -362,6 +364,12 @@ fn all_source_versions_mixed_history_preserve_registered40_and_routed39_generati
     for version in 1..=40 {
         let mut raw = original.clone();
         raw["schemaVersion"] = json!(version);
+        if raw["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            raw.as_object_mut().unwrap().remove("narrationManifests");
+        }
         if version < 40 {
             raw.as_object_mut().unwrap().remove("soundDefinitions");
         }

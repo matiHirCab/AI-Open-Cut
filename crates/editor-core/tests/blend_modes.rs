@@ -126,6 +126,7 @@ fn pre35_raw_normal_null_and_non_normal_presence_reject_before_defaults() {
     for value in [json!("normal"), Value::Null, json!("multiply")] {
         let mut old = current.clone();
         old["schemaVersion"] = json!(34);
+        old.as_object_mut().unwrap().remove("narrationManifests");
         old.as_object_mut().unwrap().remove("audioBuses");
         old.as_object_mut().unwrap().remove("soundDefinitions");
         old["tracks"][1]["items"][0]["blendMode"] = value;
@@ -134,6 +135,7 @@ fn pre35_raw_normal_null_and_non_normal_presence_reject_before_defaults() {
     }
     let mut old = current;
     old["schemaVersion"] = json!(34);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     let restored = serde_json::from_value::<Project>(old).unwrap();
@@ -201,6 +203,7 @@ fn legacy34(dir: &std::path::Path) {
             Value::Object(map) => {
                 if map.contains_key("schemaVersion") {
                     map.insert("schemaVersion".into(), json!(34));
+                    map.remove("narrationManifests");
                     if map.contains_key("tracks") && map.contains_key("assets") {
                         map.remove("audioBuses");
                         map.remove("soundDefinitions");
@@ -528,6 +531,7 @@ fn raw_draft_own_base_guards(component: bool) {
                     .find(|source| source["revision"] == base.revision)
                     .unwrap();
                 source["schemaVersion"] = json!(34);
+                source.as_object_mut().unwrap().remove("narrationManifests");
                 source.as_object_mut().unwrap().remove("audioBuses");
                 source.as_object_mut().unwrap().remove("soundDefinitions");
                 std::fs::write(path, serde_json::to_vec(&raw).unwrap()).unwrap();

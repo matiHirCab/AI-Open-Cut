@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import contract from "../../../contracts/channel-style-packs-v1.json";
+import narrationBlocks from "../../../contracts/narration-blocks-v1.json";
 import narrationFixture from "../../../contracts/narration-profiles-v1.json";
 import {
   channelApplyResultSchema,
@@ -427,6 +428,10 @@ try {
     await runCli("capture", { capture })
   );
   deepStrictEqual(await inventory(join(store, source.projectId)), sourceBefore);
+  equal(
+    captured.pack.package.componentSchemaVersion,
+    contract.componentSchemaVersion
+  );
   for (const font of captured.pack.package.fonts) {
     ok(
       contract.independentRenderOracle.fonts.some(
@@ -510,6 +515,7 @@ try {
         const legacyPath = join(store, target.projectId, "project.json");
         const legacy = JSON.parse(await readFile(legacyPath, "utf8"));
         legacy.schemaVersion = 45;
+        Reflect.deleteProperty(legacy, "narrationManifests");
         await writeFile(legacyPath, JSON.stringify(legacy, null, 2));
       }
       const request = {
@@ -542,11 +548,17 @@ try {
       equal(applied.write.revision, 2);
       if (name === "Independent B") {
         const migrated = await state(target.projectId);
-        equal(migrated.project.schemaVersion, 46);
+        equal(
+          migrated.project.schemaVersion,
+          narrationBlocks.projectSchemaVersion
+        );
         const history = JSON.parse(
           await readFile(join(store, target.projectId, "history.json"), "utf8")
         );
-        equal(history.undo.at(-1)?.schemaVersion, 46);
+        equal(
+          history.undo.at(-1)?.schemaVersion,
+          narrationBlocks.projectSchemaVersion
+        );
       }
       equal(applied.narrationProfile?.id, profile.id);
       return { applied, id: target.projectId, request };
@@ -690,12 +702,14 @@ try {
   deepStrictEqual(await preview(b.id), changedB);
   console.log(
     JSON.stringify({
+      componentSchemaVersion: captured.pack.package.componentSchemaVersion,
       independentLiteralReferences: Object.fromEntries(literalReferences),
       independentProjects: targets.length,
       initialFrameSha256: sha(firstA),
       legacyTargetMigratedInApply: true,
       libraryIndependentReopenUndoRedo: true,
       personalizedFrameSha256: sha(personalized),
+      projectSchemaVersion: bCurrent.project.schemaVersion,
       reappliedFrameSha256: sha(changedB),
       result: "PASS",
       root,

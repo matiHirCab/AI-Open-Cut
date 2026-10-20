@@ -1801,6 +1801,7 @@ mod tests {
 
     fn empty_project() -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -3404,6 +3405,7 @@ mod tests {
             easing,
         };
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -3511,6 +3513,7 @@ mod tests {
             ..crate::TextStyle::default()
         };
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -3793,6 +3796,7 @@ mod tests {
     fn render_workspace_is_removed_when_text_preparation_fails() {
         let root = tempdir().unwrap();
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -3872,6 +3876,7 @@ mod tests {
         let output = root.path().join("existing.mp4");
         std::fs::write(&output, b"existing").unwrap();
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -3955,6 +3960,7 @@ mod tests {
             .unwrap();
         assert!(tone.status.success());
         let mut project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -4234,6 +4240,7 @@ mod tests {
             ],
         };
         let project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -4547,6 +4554,7 @@ mod tests {
     #[test]
     fn captions_render_bottom_centered_and_hidden_tracks_are_excluded() {
         let mut project = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),

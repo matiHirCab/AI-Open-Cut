@@ -35,6 +35,7 @@ describe("MCP contracts", () => {
         id: "project",
         markers: [],
         name: "Visual properties",
+        narrationManifests: [],
         revision: 0,
         schemaVersion: solidGraphicSlots.projectSchemaVersion,
         settings: { fps: 30, height: 1080, width: 1920 },

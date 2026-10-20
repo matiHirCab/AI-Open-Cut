@@ -361,6 +361,7 @@ fn legacy_adoption_aligned_replacement_history_and_no_rewrite_reopen() {
     let project_file = dir.join("project.json");
     let mut legacy = read_json(&project_file);
     legacy["schemaVersion"] = json!(37);
+    legacy.as_object_mut().unwrap().remove("narrationManifests");
     legacy.as_object_mut().unwrap().remove("audioBuses");
     legacy.as_object_mut().unwrap().remove("soundDefinitions");
     write_json(&project_file, &legacy);
@@ -449,11 +450,13 @@ fn invalid_current_and_retained_alignment_or_future_schema_never_adopt_bytes() {
                 "unknown-duration" => broken["assets"][0]["durationMs"] = Value::Null,
                 "pre-introduction" => {
                     broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("narrationManifests");
                     broken.as_object_mut().unwrap().remove("audioBuses");
                     broken.as_object_mut().unwrap().remove("soundDefinitions");
                 }
                 "pre-introduction-null" => {
                     broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("narrationManifests");
                     broken.as_object_mut().unwrap().remove("audioBuses");
                     broken.as_object_mut().unwrap().remove("soundDefinitions");
                     broken["assets"][0]["origin"]["generation"]["alignment"] = Value::Null;
@@ -488,10 +491,18 @@ fn mixed_legacy_history_preserves_genuine_unaligned_speech_without_inference() {
     let history_file = dir.join("history.json");
     let mut project = read_json(&project_file);
     project["schemaVersion"] = json!(37);
+    project
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     project.as_object_mut().unwrap().remove("audioBuses");
     project.as_object_mut().unwrap().remove("soundDefinitions");
     let mut history = read_json(&history_file);
     history["undo"][0]["schemaVersion"] = json!(36);
+    history["undo"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     history["undo"][0]
         .as_object_mut()
         .unwrap()
@@ -573,6 +584,30 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
     for name in pins["currentMarkerCatalogs"].as_array().unwrap() {
         let name = name.as_str().unwrap();
         let current = std::fs::read_to_string(root.join(name)).unwrap();
+        let current = if current.contains("\"projectSchemaVersion\": 47") {
+            let narration_block_pins: Value = serde_json::from_str(include_str!(
+                "../../../apps/agent-bridge/tests/fixtures/narration-blocks-predecessor-pins.json"
+            ))
+            .unwrap();
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 47").count(),
+                1,
+                "{name}"
+            );
+            let previous = current.replacen(
+                "\"projectSchemaVersion\": 47",
+                "\"projectSchemaVersion\": 46",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(previous.as_bytes())),
+                narration_block_pins[name],
+                "{name}"
+            );
+            previous
+        } else {
+            current
+        };
         let bus_pins: Value = serde_json::from_str(include_str!(
             "../../../apps/agent-bridge/tests/fixtures/audio-buses-predecessor-pins.json"
         ))
@@ -786,6 +821,7 @@ fn aligned_request_failures_preserve_current_and_legacy_files_and_exact_codes() 
             let path = dir.join("project.json");
             let mut raw = read_json(&path);
             raw["schemaVersion"] = json!(37);
+            raw.as_object_mut().unwrap().remove("narrationManifests");
             raw.as_object_mut().unwrap().remove("audioBuses");
             raw.as_object_mut().unwrap().remove("soundDefinitions");
             write_json(&path, &raw);

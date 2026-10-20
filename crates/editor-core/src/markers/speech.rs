@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 
 use crate::{
     CoreError, ErrorCode, GeneratedAssetOrigin, MAX_MARKERS_PER_COMPOSITION, Marker, MarkerKind,
-    Project, SpeechAlignment, SpeechMarkerPolicy,
+    Project, SpeechAlignment, SpeechMarkerPolicy, SpeechTimedText,
 };
 
 fn invalid(message: &str) -> CoreError {
@@ -31,6 +31,58 @@ fn base_name(text: &str, granularity: &str, ordinal: usize) -> String {
     }
     name.truncate(120);
     name
+}
+
+pub(crate) type SpeechMarkerSelection<'a> = (Vec<(usize, &'a SpeechTimedText)>, &'static str);
+
+pub(crate) fn speech_marker_selection<'a>(
+    alignment: Option<&'a SpeechAlignment>,
+    policy: &SpeechMarkerPolicy,
+) -> Result<SpeechMarkerSelection<'a>, CoreError> {
+    if matches!(policy, SpeechMarkerPolicy::None {}) {
+        return Ok((vec![], "word"));
+    }
+    let alignment = alignment.ok_or_else(|| invalid("speech markers require alignment"))?;
+    let (segments, granularity) = match policy {
+        SpeechMarkerPolicy::Sentence {} => (&alignment.sentences, "sentence"),
+        _ => (&alignment.words, "word"),
+    };
+    if segments.is_empty() {
+        return Err(invalid(
+            "speech alignment does not contain requested marker granularity",
+        ));
+    }
+    let indices: Vec<usize> = match policy {
+        SpeechMarkerPolicy::SelectedWord { indices } => {
+            if indices.is_empty() || indices.len() > MAX_MARKERS_PER_COMPOSITION {
+                return Err(invalid(
+                    "selected word indices must contain 1 to 4096 entries",
+                ));
+            }
+            let mut selected = BTreeSet::new();
+            for index in indices {
+                let index =
+                    usize::try_from(*index).map_err(|_| invalid("word index out of range"))?;
+                if index >= segments.len() || !selected.insert(index) {
+                    return Err(invalid("selected word indices must be valid and unique"));
+                }
+            }
+            selected.into_iter().collect()
+        }
+        _ => {
+            if segments.len() > MAX_MARKERS_PER_COMPOSITION {
+                return Err(invalid("speech marker selection exceeds composition limit"));
+            }
+            (0..segments.len()).collect()
+        }
+    };
+    Ok((
+        indices
+            .into_iter()
+            .map(|index| (index, &segments[index]))
+            .collect(),
+        granularity,
+    ))
 }
 
 pub(crate) fn generate_speech_markers(
@@ -88,46 +140,13 @@ pub(crate) fn generate_speech_markers(
         })
         .ok_or_else(|| invalid("speech markers require alignment"))?;
     alignment.validate_for_duration(Some(duration))?;
-    let (segments, granularity) = match policy {
-        SpeechMarkerPolicy::Sentence {} => (&alignment.sentences, "sentence"),
-        _ => (&alignment.words, "word"),
-    };
-    if segments.is_empty() {
-        return Err(invalid(
-            "speech alignment does not contain requested marker granularity",
-        ));
-    }
-    let indices: Vec<usize> = match policy {
-        SpeechMarkerPolicy::SelectedWord { indices } => {
-            if indices.is_empty() || indices.len() > MAX_MARKERS_PER_COMPOSITION {
-                return Err(invalid(
-                    "selected word indices must contain 1 to 4096 entries",
-                ));
-            }
-            let mut selected = BTreeSet::new();
-            for index in indices {
-                let index =
-                    usize::try_from(*index).map_err(|_| invalid("word index out of range"))?;
-                if index >= segments.len() || !selected.insert(index) {
-                    return Err(invalid("selected word indices must be valid and unique"));
-                }
-            }
-            selected.into_iter().collect()
-        }
-        _ => {
-            if segments.len() > MAX_MARKERS_PER_COMPOSITION {
-                return Err(invalid("speech marker selection exceeds composition limit"));
-            }
-            (0..segments.len()).collect()
-        }
-    };
-    if existing.len() + indices.len() > MAX_MARKERS_PER_COMPOSITION {
+    let (selection, granularity) = speech_marker_selection(Some(alignment), policy)?;
+    if existing.len() + selection.len() > MAX_MARKERS_PER_COMPOSITION {
         return Err(invalid("speech markers exceed composition marker limit"));
     }
     let mut names: BTreeSet<String> = existing.iter().map(|marker| marker.name.clone()).collect();
-    let mut output = Vec::with_capacity(indices.len());
-    for index in indices {
-        let segment = &segments[index];
+    let mut output = Vec::with_capacity(selection.len());
+    for (index, segment) in selection {
         let end = start_ms
             .checked_add(segment.end_ms)
             .filter(|end| *end <= super::MAX_SAFE)

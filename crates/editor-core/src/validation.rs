@@ -10,6 +10,7 @@ pub(crate) mod extended_visual;
 pub(crate) mod grid;
 pub(crate) mod mask;
 pub(crate) mod matte;
+pub(crate) mod narration_blocks;
 pub(crate) mod repeater;
 pub(crate) mod styled_text;
 pub(crate) mod svg;
@@ -99,6 +100,7 @@ pub(crate) mod audio_buses;
 pub(crate) fn validate_project_visual_properties_without_mattes(
     project: &Project,
 ) -> Result<(), CoreError> {
+    narration_blocks::validate_project(project)?;
     audio_buses::validate_project(project)?;
     project.validate_sound_definition_model()?;
     project.validate_audio_event_model()?;

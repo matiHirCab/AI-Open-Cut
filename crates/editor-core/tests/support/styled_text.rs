@@ -61,6 +61,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(19);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
@@ -73,6 +74,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
         std::fs::read(dir.join("drafts").join(format!("{}.json", draft.id))).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    old.as_object_mut().unwrap().entry("narrationManifests").or_insert_with(|| serde_json::json!([]));
     old["audioBuses"] = serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     old["soundDefinitions"] = json!([]);
     assert_eq!(migrated, old);
@@ -99,6 +101,7 @@ fn schema_19_to_20_preserves_history_drafts_and_reopen() {
     for location in ["current", "undo", "redo"] {
         let mut invalid = old.clone();
         invalid["schemaVersion"] = json!(19);
+        invalid.as_object_mut().unwrap().remove("narrationManifests");
         invalid.as_object_mut().unwrap().remove("audioBuses");
         invalid.as_object_mut().unwrap().remove("soundDefinitions");
         invalid["tracks"][1]["items"][0]["document"]["spans"] = json!([]);
@@ -132,6 +135,7 @@ fn malformed_retained_styled_draft_blocks_migration_without_publication() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut project = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     project["schemaVersion"] = json!(19);
+    project.as_object_mut().unwrap().remove("narrationManifests");
     project.as_object_mut().unwrap().remove("audioBuses");
     project.as_object_mut().unwrap().remove("soundDefinitions");
     let draft_path = dir.join("drafts").join(format!("{}.json", draft.id));

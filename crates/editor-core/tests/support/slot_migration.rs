@@ -23,6 +23,7 @@ fn legacy_slot_edits_preserve_precommit_bytes_and_recover_complete_generations()
             let dir=core.paths().project_dir(&id).unwrap();
             let mut old:serde_json::Value=serde_json::from_slice(&std::fs::read(project_path(&dir)).unwrap()).unwrap();
             old["schemaVersion"]=serde_json::json!(44);
+            old.as_object_mut().unwrap().remove("narrationManifests");
             std::fs::write(project_path(&dir),serde_json::to_vec(&old).unwrap()).unwrap();
             std::fs::write(history_path(&dir),serde_json::to_vec(&serde_json::json!({"undo":[old.clone()],"redo":[old]})).unwrap()).unwrap();
             let define=serde_json::json!({"operation":"component_define_slots","componentId":aliases["card"],"slots":[{

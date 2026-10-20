@@ -207,6 +207,12 @@ fn migrate_every_supported_version_and_mixed_history() {
         value["schemaVersion"] = json!(version);
         if value["schemaVersion"]
             .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            value.as_object_mut().unwrap().remove("narrationManifests");
+        }
+        if value["schemaVersion"]
+            .as_u64()
             .is_some_and(|version| version < 39)
         {
             value.as_object_mut().unwrap().remove("audioBuses");
@@ -215,6 +221,7 @@ fn migrate_every_supported_version_and_mixed_history() {
         clear_legacy_font_fields(&mut value);
         let mut old = value.clone();
         old["schemaVersion"] = json!(1);
+        old.as_object_mut().unwrap().remove("narrationManifests");
         old.as_object_mut().unwrap().remove("audioBuses");
         old.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut old);
@@ -374,6 +381,7 @@ fn invalid_transform_in_retained_history_is_never_published() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(7);
+    state.as_object_mut().unwrap().remove("narrationManifests");
     state.as_object_mut().unwrap().remove("audioBuses");
     state.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut state);

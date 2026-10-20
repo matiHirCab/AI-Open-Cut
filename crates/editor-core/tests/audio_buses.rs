@@ -62,6 +62,9 @@ fn write_json(path: &Path, value: &Value) {
 fn legacy(mut value: Value, version: u32) -> Value {
     let object = value.as_object_mut().unwrap();
     object.insert("schemaVersion".into(), json!(version));
+    if version < 47 {
+        object.remove("narrationManifests");
+    }
     object.remove("audioBuses");
     object.remove("soundDefinitions");
     if version < 19 {

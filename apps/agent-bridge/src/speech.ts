@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
-
+import { isDeepStrictEqual } from "node:util";
 import type { z } from "zod/v4";
 import { BridgeError, type HeadlessClient } from "./headless";
 import type { HeadlessRequest } from "./headless-contract";
+import { isReportedCoreError } from "./headless-events";
 import type { JobTaskContext } from "./jobs";
 import { type Logger, NOOP_LOGGER } from "./logger";
+import { assertNarrationJsonBudget } from "./narration-blocks/budget";
+import { NarrationPublicationUnknownError } from "./narration-blocks/errors";
 import {
   commitGeneratedAssetResultSchema,
+  type generatedAssetOriginSchema,
   type narrationProfileApplicationSchema,
   type narrationProfileAttributionSchema,
   narrationProfileSchema,
@@ -120,9 +124,15 @@ export class GeneratedArtifactConflictError extends BridgeError {
 
 export class SpeechApplicationService {
   readonly #artifacts = new Map<string, RetainedArtifact>();
+  readonly #narrationHeld = new Map<
+    string,
+    "leased" | "quarantined" | "consumed"
+  >();
+  readonly #narrationActive = new Set<Promise<unknown>>();
+  readonly #ordinaryConsuming = new Set<string>();
   readonly #artifactTtlMs: number;
   readonly #commitGeneratedAsset: CommitGeneratedAsset;
-  readonly #headless: HeadlessClient | undefined;
+  readonly #headless: Pick<HeadlessClient, "call"> | undefined;
   readonly #logger: Logger;
   readonly #now: () => number;
   readonly #provider: SpeechSynthesizer;
@@ -131,7 +141,7 @@ export class SpeechApplicationService {
 
   constructor(
     provider: SpeechSynthesizer,
-    headlessOrCommit: HeadlessClient | CommitGeneratedAsset,
+    headlessOrCommit: Pick<HeadlessClient, "call"> | CommitGeneratedAsset,
     artifactTtlMs = 600_000,
     now: () => number = Date.now,
     logger: Logger = NOOP_LOGGER
@@ -302,6 +312,13 @@ export class SpeechApplicationService {
     this.#assertOpen();
     const status = await this.status();
     const request = await this.#resolveSource(source, status);
+    return await this.#estimateResolved(request, status);
+  }
+
+  async #estimateResolved(
+    request: SpeechSynthesisRequest,
+    status: z.infer<typeof ttsStatusSchema>
+  ) {
     const estimate = this.#provider.estimate
       ? await this.#provider.estimate(request)
       : defaultEstimate(request);
@@ -329,6 +346,14 @@ export class SpeechApplicationService {
     this.#assertOpen();
     const status = await this.status();
     const request = await this.#resolveSource(source, status);
+    return await this.#previewResolved(request, status, context);
+  }
+
+  async #previewResolved(
+    request: SpeechSynthesisRequest,
+    status: z.infer<typeof ttsStatusSchema>,
+    context: JobTaskContext
+  ) {
     context.onProgress(0.05);
     let generated = await this.#synthesize(request, context);
     try {
@@ -354,6 +379,211 @@ export class SpeechApplicationService {
       await this.#cleanupWithoutMasking(generated.outputPath);
       throw error;
     }
+  }
+
+  async prepareNarrationRequest(
+    input: z.infer<typeof resolvedNarrationRequestSchema>,
+    maxCharacters: number
+  ) {
+    this.#assertOpen();
+    const request = resolvedNarrationRequestSchema.parse(input);
+    assertNarrationJsonBudget(request, 131_072);
+    const status = await this.status();
+    if (!status.ready) {
+      throw new BridgeError(
+        "TTS_UNAVAILABLE",
+        "Speech provider is not ready; inspect speech status"
+      );
+    }
+    const voices = speechVoiceListSchema.parse(
+      await this.#provider.listVoices()
+    );
+    validateVoiceCatalog(status, voices);
+    const resolved = resolveRequest(
+      { ...request, voice: request.voiceId },
+      status,
+      voices
+    );
+    const effective = {
+      ...resolved,
+      narrationProfile: structuredClone(request.narrationProfile),
+      textOptions: structuredClone(request.textOptions),
+    };
+    if (!isDeepStrictEqual(effective, request)) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Narration request must retain its exact resolved trimmed settings"
+      );
+    }
+    const segments = prepareSpeechSegments(effective);
+    const spokenText = segments.join("\n");
+    const limit = Math.min(
+      4096,
+      maxCharacters,
+      status.limits.maxTextCharacters
+    );
+    if (
+      !Number.isSafeInteger(maxCharacters) ||
+      maxCharacters <= 0 ||
+      maxCharacters > 4096 ||
+      segments.length === 0 ||
+      segments.length > 32 ||
+      segments.some((segment) => !segment.trim()) ||
+      Buffer.byteLength(spokenText, "utf8") > 4096 ||
+      Array.from(spokenText).length > limit ||
+      Buffer.byteLength(request.text, "utf8") > 4096 ||
+      Array.from(request.text).length > limit
+    ) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Narration resolved wording exceeds the block/provider budget or is blank"
+      );
+    }
+    await this.#estimateResolved(effective, status);
+    return { request: effective, spokenSegments: segments, spokenText };
+  }
+
+  async previewResolvedNarration(
+    input: z.infer<typeof resolvedNarrationRequestSchema>,
+    maxCharacters: number,
+    context: JobTaskContext
+  ) {
+    if (this.#artifacts.size >= 128) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Narration retention is limited to128 tokens including cleanup debt"
+      );
+    }
+    const prepared = await this.prepareNarrationRequest(input, maxCharacters);
+    if (context.signal.aborted) {
+      throw new BridgeError("JOB_CANCELLED", "Narration preview was cancelled");
+    }
+    return await this.#previewResolved(
+      prepared.request,
+      await this.status(),
+      context
+    );
+  }
+
+  async withNarrationPreviews<T>(
+    tokens: readonly string[],
+    publish: (
+      artifacts: Array<{
+        token: string;
+        generated: SynthesizedSpeech;
+        origin: z.infer<typeof generatedAssetOriginSchema>;
+      }>,
+      beginPublication: () => void
+    ) => Promise<T>
+  ): Promise<{ value: T; warnings: string[] }> {
+    this.#assertOpen();
+    if (
+      tokens.length === 0 ||
+      tokens.length > 32 ||
+      new Set(tokens).size !== tokens.length
+    ) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Narration requires 1..32 distinct complete preview tokens"
+      );
+    }
+    const artifacts = tokens.map((token) => ({
+      retained: this.#artifact(token),
+      token,
+    }));
+    for (const { token, retained } of artifacts) {
+      this.#narrationHeld.set(token, "leased");
+      clearTimeout(retained.timer);
+    }
+    let publicationStarted = false;
+    const work = (async () => {
+      try {
+        const value = await publish(
+          artifacts.map(({ token, retained }) => ({
+            generated: structuredClone(retained.generated),
+            origin: this.#origin(structuredClone(retained.generated)),
+            token,
+          })),
+          () => {
+            publicationStarted = true;
+          }
+        );
+        return { value, warnings: await this.#releaseNarration(tokens, true) };
+      } catch (error) {
+        const safe = !publicationStarted || isReportedCoreError(error);
+        if (safe) {
+          const warnings = await this.#releaseNarration(tokens, false);
+          if (error !== null && typeof error === "object") {
+            Object.assign(error, { cleanupWarnings: warnings });
+          }
+          throw error;
+        }
+        for (const token of tokens) {
+          this.#narrationHeld.set(token, "quarantined");
+        }
+        // biome-ignore lint/style/useErrorCause: The typed wrapper forwards ErrorOptions to BridgeError.
+        throw new NarrationPublicationUnknownError({ cause: error });
+      }
+    })();
+    this.#narrationActive.add(work);
+    try {
+      return await work;
+    } finally {
+      this.#narrationActive.delete(work);
+    }
+  }
+
+  async acknowledgeNarrationPreviews(tokens: readonly string[]) {
+    if (
+      tokens.some((token) => this.#narrationHeld.get(token) !== "quarantined")
+    ) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Only an uncertain complete group can be explicitly reconciled"
+      );
+    }
+    return await this.#releaseNarration(tokens, true);
+  }
+
+  async abandonNarrationPreviews(tokens: readonly string[]) {
+    await Promise.allSettled([...this.#narrationActive]);
+    if (tokens.some((token) => this.#narrationHeld.get(token) === "leased")) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Narration publication is still active"
+      );
+    }
+    return await this.#releaseNarration(tokens, true);
+  }
+
+  async #releaseNarration(tokens: readonly string[], consumed: boolean) {
+    const warnings: string[] = [];
+    for (const token of tokens) {
+      this.#narrationHeld.delete(token);
+      const artifact = this.#artifacts.get(token);
+      if (!artifact) {
+        continue;
+      }
+      if (consumed || artifact.expiresAtMs <= this.#now()) {
+        this.#narrationHeld.set(token, "consumed");
+        // biome-ignore lint/performance/noAwaitInLoops: Settle each retained artifact before releasing its ownership state.
+        const warning = await this.#discardWithWarning(token, artifact);
+        if (warning) {
+          warnings.push(warning);
+        } else {
+          this.#narrationHeld.delete(token);
+        }
+      } else {
+        artifact.timer = setTimeout(
+          () => {
+            this.#discard(token, artifact).catch(() => undefined);
+          },
+          Math.max(1, artifact.expiresAtMs - this.#now())
+        );
+        artifact.timer.unref();
+      }
+    }
+    return warnings;
   }
 
   previewAudio(token: string) {
@@ -525,6 +755,12 @@ export class SpeechApplicationService {
   }
 
   async commitGeneratedArtifact(token: string, expectedRevision: number) {
+    if (this.#narrationHeld.has(token) || this.#ordinaryConsuming.has(token)) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Preview is reserved or uncertain"
+      );
+    }
     this.#assertOpen();
     this.#cleanupExpired();
     const retained = this.#artifacts.get(token);
@@ -549,8 +785,51 @@ export class SpeechApplicationService {
     this.#provider.cancel();
   }
 
+  async closeNarration() {
+    this.#closed = true;
+    await Promise.allSettled([...this.#narrationActive]);
+    const disposal = await Promise.allSettled(
+      [...this.#artifacts].map(async ([token, artifact]) => {
+        this.#narrationHeld.set(token, "consumed");
+        const warning = await this.#discardWithWarning(token, artifact);
+        if (!warning) {
+          this.#narrationHeld.delete(token);
+        }
+        return warning;
+      })
+    );
+    const errors: unknown[] = [];
+    for (const result of disposal) {
+      if (result.status === "rejected") {
+        errors.push(result.reason);
+      } else if (result.value) {
+        errors.push(result.value);
+      }
+    }
+    try {
+      await this.#provider.close();
+    } catch (error) {
+      errors.push(error);
+    }
+    if (errors.length > 0) {
+      throw new BridgeError(
+        "INTERNAL_ERROR",
+        "Narration preview/provider cleanup is unconfirmed",
+        false,
+        {
+          cause: new AggregateError(
+            errors,
+            "Narration cleanup attempts failed"
+          ),
+        }
+      );
+    }
+  }
+
   async close() {
     this.#closed = true;
+    await Promise.allSettled([...this.#narrationActive]);
+    this.#narrationHeld.clear();
     await Promise.allSettled(
       [...this.#artifacts].map(async ([token, artifact]) =>
         this.#discard(token, artifact)
@@ -625,6 +904,12 @@ export class SpeechApplicationService {
   }
 
   #artifact(token: string) {
+    if (this.#narrationHeld.has(token) || this.#ordinaryConsuming.has(token)) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Preview is reserved, uncertain or already consumed by a narration group"
+      );
+    }
     this.#cleanupExpired();
     const artifact = this.#artifacts.get(token);
     if (!artifact) {
@@ -637,6 +922,25 @@ export class SpeechApplicationService {
   }
 
   async #commitRetained(
+    token: string,
+    retained: RetainedArtifact,
+    expectedRevision: number
+  ) {
+    if (this.#narrationHeld.has(token) || this.#ordinaryConsuming.has(token)) {
+      throw new BridgeError(
+        "VALIDATION_FAILED",
+        "Preview is already being consumed"
+      );
+    }
+    this.#ordinaryConsuming.add(token);
+    try {
+      return await this.#commitRetainedOwned(token, retained, expectedRevision);
+    } finally {
+      this.#ordinaryConsuming.delete(token);
+    }
+  }
+
+  async #commitRetainedOwned(
     token: string,
     retained: RetainedArtifact,
     expectedRevision: number
@@ -858,6 +1162,9 @@ export class SpeechApplicationService {
   }
 
   async #discard(token: string, artifact: RetainedArtifact) {
+    if (this.#narrationHeld.has(token)) {
+      return;
+    }
     if (this.#artifacts.get(token) !== artifact) {
       return;
     }
@@ -869,7 +1176,7 @@ export class SpeechApplicationService {
   #cleanupExpired() {
     const now = this.#now();
     for (const [token, artifact] of this.#artifacts) {
-      if (artifact.expiresAtMs <= now) {
+      if (artifact.expiresAtMs <= now && !this.#narrationHeld.has(token)) {
         this.#discard(token, artifact).catch(() => undefined);
       }
     }
