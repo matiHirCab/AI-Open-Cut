@@ -3071,12 +3071,20 @@ fn rejected_legacy_preset_requests_preserve_wire_errors_and_persisted_generation
         let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if name == "project.json" {
             document["schemaVersion"] = json!(28);
+            document
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             document.as_object_mut().unwrap().remove("audioBuses");
             document.as_object_mut().unwrap().remove("soundDefinitions");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(28);
+                    snapshot
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("narrationManifests");
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
                     snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                 }
@@ -3164,12 +3172,20 @@ fn motion_pack_raw_wire_errors_preserve_schema29_documents() {
         let mut document: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         if name == "project.json" {
             document["schemaVersion"] = json!(29);
+            document
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             document.as_object_mut().unwrap().remove("audioBuses");
             document.as_object_mut().unwrap().remove("soundDefinitions");
         } else {
             for kind in ["undo", "redo"] {
                 for snapshot in document[kind].as_array_mut().unwrap() {
                     snapshot["schemaVersion"] = json!(29);
+                    snapshot
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("narrationManifests");
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
                     snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                 }
@@ -4411,5 +4427,63 @@ fn master_normalization_capability_requires_every_reviewed_filter() {
             opencut_editor_core::PROJECT_SCHEMA_VERSION
         );
         assert_eq!(status["protocolVersion"], 1);
+    }
+}
+
+#[test]
+fn narration_blocks_transport_consumes_canonical_scalar_cases_and_rejects_before_media_import() {
+    let h = Harness::new();
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../contracts/narration-blocks-v1.json")).unwrap();
+    let profile_fixture: Value = serde_json::from_str(include_str!(
+        "../../../contracts/narration-profiles-v1.json"
+    ))
+    .unwrap();
+    let profile = result(&h.request(
+        json!({"operation":"narration_profile_create","settings":profile_fixture["settings"]}),
+    ));
+    for case in catalog["planningCases"].as_array().unwrap() {
+        let mut input = json!({"sourceText":case["text"],"profileId":profile["id"],"expectedVersion":1,"maxTextCharacters":4096});
+        if let Some(boundaries) = case.get("boundaries") {
+            input["boundaries"] = boundaries.clone();
+        }
+        let plan = result(&h.request(json!({"operation":"narration_blocks_plan","input":input})));
+        assert_eq!(
+            plan["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|b| b["displayText"].clone())
+                .collect::<Vec<_>>(),
+            case["displays"].as_array().unwrap().clone()
+        );
+        assert_eq!(
+            plan["blocks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|b| b["request"]["text"].clone())
+                .collect::<Vec<_>>(),
+            case["requests"].as_array().unwrap().clone()
+        );
+    }
+    let write =
+        result(&h.request(json!({"operation":"create_project","name":"Native block transport"})));
+    let id = write["projectId"].clone();
+    let state = result(&h.request(json!({"operation":"get_state","projectId":id})));
+    let input = json!({"sourceText":"A.","profileId":profile["id"],"expectedVersion":1,"maxTextCharacters":4096});
+    let plan = result(&h.request(json!({"operation":"narration_blocks_plan","input":input})));
+    let before = h.project_files(id.as_str().unwrap());
+    let output = h.request(json!({"operation":"commit_narration_blocks","input":{"projectId":id,"expectedRevision":0,"trackId":state["project"]["tracks"][2]["id"],"startMs":0,"plan":plan,"blocks":[]}}));
+    assert_eq!(event(&output)["error"]["code"], "VALIDATION_FAILED");
+    assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    let output = h.request(json!({"operation":"detach_narration_block","projectId":id,"expectedRevision":0,"manifestId":plan["id"],"blockId":plan["blocks"][0]["id"]}));
+    assert_eq!(event(&output)["error"]["code"], "ITEM_NOT_FOUND");
+    assert_eq!(h.project_files(id.as_str().unwrap()), before);
+    for field in ["extra", "__proto__"] {
+        let mut invalid = input.clone();
+        invalid[field] = json!(true);
+        let output = h.request(json!({"operation":"narration_blocks_plan","input":invalid}));
+        assert_eq!(event(&output)["error"]["code"], "INVALID_ARGUMENT");
     }
 }

@@ -15,7 +15,7 @@ import {
 } from "typescript";
 import { expect } from "vitest";
 import { z } from "zod/v4";
-import ownership from "../../../contracts/contract-ownership-v1.json";
+import liveOwnership from "../../../contracts/contract-ownership-v1.json";
 import contract from "../../../contracts/durable-production-requests-v1.json";
 import mcp from "../../../contracts/mcp-surface-v1.json";
 import {
@@ -26,6 +26,10 @@ import {
 } from "../src/production-requests/contract";
 import { registerProductionRequestTools } from "../src/server/production-requests";
 import type { Server, ServerDependencies } from "../src/server/shared";
+import {
+  removeMain47Peers,
+  restoreMain47PeersRaw,
+} from "./fixtures/durable-main47-peers";
 import {
   assertDurableProductionOwnership,
   removeDurableMcpAdditions,
@@ -111,6 +115,7 @@ export const assertDurableProductionConsumer = (source: string): void => {
 };
 
 export const verifyDurableProductionContract = () => {
+  const ownership = liveOwnership;
   verifyIndependentGovernanceCoexistence();
   assertDurableProductionOwnership(ownership);
   expect(contract.version).toBe(1);
@@ -204,8 +209,8 @@ export const verifyDurableProductionContract = () => {
     const restore = (input: string) =>
       restoreDurableRaw(
         name === "contract-ownership-v1"
-          ? restoreShortPlanningOwnershipRaw(input)
-          : input
+          ? restoreShortPlanningOwnershipRaw(restoreMain47PeersRaw(input))
+          : restoreMain47PeersRaw(input)
       );
     expect(restore(raw)).toBe(captured.toString("utf8"));
     const altered = raw.replace('"version": 1', '"version": 2');
@@ -218,6 +223,7 @@ export const verifyDurableProductionContract = () => {
 /** Independent frozen predecessors, checked before this executable integration. */
 const ownershipVersionPattern = /"version":\s*1/;
 const verifyIndependentGovernanceCoexistence = () => {
+  const ownership = removeMain47Peers(liveOwnership, "contract-ownership-v1");
   const raw = readFileSync(
     new URL(
       "./fixtures/short-candidates-predecessor-ownership.raw",
@@ -262,7 +268,7 @@ const verifyIndependentGovernanceCoexistence = () => {
       restoreShortPlanningOwnershipRaw(restoreDurableRaw(input)),
   ];
   for (const [input, expected] of [
-    [current, raw],
+    [restoreMain47PeersRaw(current), raw],
     [JSON.stringify(ownership), compact],
   ]) {
     if (input === undefined || expected === undefined) {

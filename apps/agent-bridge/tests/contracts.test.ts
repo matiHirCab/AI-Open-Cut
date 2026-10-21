@@ -26,7 +26,7 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
-import NARRATION_PROFILES from "../../../contracts/narration-profiles-v1.json";
+import NARRATION_BLOCKS from "../../../contracts/narration-blocks-v1.json";
 import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
 import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
@@ -86,6 +86,7 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { verifyChannelPackContract } from "./channel-packs-contract";
 import { verifyDurableProductionContract } from "./durable-production-contract";
 import {
   alignAudioAnalysisRuntimeObjectOrder,
@@ -1096,12 +1097,20 @@ describe("canonical public contracts", () => {
   it("validates canonical status negotiation in TypeScript and Zod", () => {
     const operations = {
       analyze_audio: true,
+      channel_pack_apply: true,
+      channel_pack_capture: true,
+      channel_pack_get: true,
+      channel_pack_import: true,
+      channel_pack_list: true,
+      channel_pack_update: true,
       commit_draft: true,
       commit_generated_asset: true,
+      commit_narration_blocks: true,
       commit_transcription: true,
       create_draft: true,
       create_project: true,
       delete_asset: true,
+      detach_narration_block: true,
       discard_draft: true,
       edit: true,
       edit_batch: true,
@@ -1111,6 +1120,7 @@ describe("canonical public contracts", () => {
       get_state: true,
       import_asset: true,
       list_projects: true,
+      narration_blocks_plan: true,
       narration_profile_create: true,
       narration_profile_get: true,
       narration_profile_list: true,
@@ -1150,7 +1160,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
+      projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1245,7 +1255,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
+        projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {
@@ -1354,6 +1364,10 @@ describe("canonical public contracts", () => {
   it(
     "governs the independent short-candidate CLI and exact ownership addition",
     verifyShortPlanningContract
+  );
+  it(
+    "governs channel packs and exact additive predecessors",
+    verifyChannelPackContract
   );
 
   it("keeps TypeScript checking in the standalone contract gate", () => {

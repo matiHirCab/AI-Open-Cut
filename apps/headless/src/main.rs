@@ -41,7 +41,44 @@ enum Request {
         #[serde(default)]
         styled_text_layers_version: Option<u32>,
     },
+    NarrationBlocksPlan {
+        input: opencut_editor_core::NarrationPlanInput,
+    },
+    CommitNarrationBlocks {
+        input: opencut_editor_core::CommitNarrationBlocksInput,
+    },
+    DetachNarrationBlock {
+        project_id: String,
+        expected_revision: u64,
+        manifest_id: String,
+        block_id: String,
+    },
     NarrationProfileList {},
+    ChannelPackList {},
+    ChannelPackGet {
+        pack_id: String,
+    },
+    ChannelPackCapture {
+        capture: opencut_editor_core::ChannelCaptureInput,
+    },
+    ChannelPackUpdate {
+        pack_id: String,
+        expected_version: u64,
+        capture: opencut_editor_core::ChannelCaptureInput,
+    },
+    ChannelPackImport {
+        name: String,
+        package_json: String,
+    },
+    ChannelPackApply {
+        project_id: String,
+        expected_revision: u64,
+        pack_id: String,
+        expected_version: u64,
+        images: Vec<opencut_editor_core::ChannelImageBinding>,
+        narration: opencut_editor_core::ChannelNarrationChoice,
+        application: opencut_editor_core::ChannelApplyMode,
+    },
     NarrationProfileGet {
         profile_id: String,
     },
@@ -387,7 +424,75 @@ fn dispatch(
             }
             sink.value(status(renderer))
         }
+        Request::NarrationBlocksPlan { input } => sink.value(core.plan_narration_blocks(input)?),
+        Request::CommitNarrationBlocks { mut input } => {
+            let paths = core.validate_narration_blocks_input(&input)?;
+            for (block, path) in input.blocks.iter_mut().zip(paths) {
+                let probe = renderer.probe(&path)?;
+                if !probe.has_audio || probe.duration_ms != Some(block.duration_ms) {
+                    return Err(CoreError::new(
+                        opencut_editor_core::ErrorCode::ValidationFailed,
+                        "narration duration/audio must match actual probed generated media",
+                    ));
+                }
+                block.path = path;
+                block.probe = MediaProbeFacts {
+                    duration_ms: probe.duration_ms,
+                    has_audio: probe.has_audio,
+                    has_video: probe.has_video,
+                    format_name: probe.format_name,
+                    video_codec: probe.video_codec,
+                    video_width: probe.video_width,
+                    video_height: probe.video_height,
+                    audio_codec: probe.audio_codec,
+                    audio_channels: probe.audio_channels,
+                    audio_sample_rate_hz: probe.audio_sample_rate_hz,
+                };
+            }
+            sink.value(core.commit_narration_blocks(input)?)
+        }
+        Request::DetachNarrationBlock {
+            project_id,
+            expected_revision,
+            manifest_id,
+            block_id,
+        } => sink.value(core.detach_narration_block(
+            &project_id,
+            expected_revision,
+            &manifest_id,
+            &block_id,
+        )?),
         Request::NarrationProfileList {} => sink.value(core.list_narration_profiles()?),
+        Request::ChannelPackList {} => sink.value(core.list_channel_packs()?),
+        Request::ChannelPackGet { pack_id } => sink.value(core.get_channel_pack(&pack_id)?),
+        Request::ChannelPackCapture { capture } => sink.value(core.capture_channel_pack(capture)?),
+        Request::ChannelPackUpdate {
+            pack_id,
+            expected_version,
+            capture,
+        } => sink.value(core.update_channel_pack(&pack_id, expected_version, capture)?),
+        Request::ChannelPackImport { name, package_json } => {
+            sink.value(core.import_channel_pack(&name, &package_json)?)
+        }
+        Request::ChannelPackApply {
+            project_id,
+            expected_revision,
+            pack_id,
+            expected_version,
+            images,
+            narration,
+            application,
+        } => sink.value(
+            core.apply_channel_pack(opencut_editor_core::ChannelApplyInput {
+                project_id,
+                expected_revision,
+                pack_id,
+                expected_version,
+                images,
+                narration,
+                application,
+            })?,
+        ),
         Request::NarrationProfileGet { profile_id } => {
             sink.value(core.get_narration_profile(&profile_id)?)
         }
@@ -1049,6 +1154,51 @@ fn emit(event: impl Serialize) -> Result<(), CoreError> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn canonical_channel_pack_requests_use_actual_closed_native_variants() {
+        let contract: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/channel-style-packs-v1.json"
+        ))
+        .unwrap();
+        for request in contract["requests"].as_array().unwrap() {
+            serde_json::from_value::<super::Request>(request.clone()).unwrap();
+            let mut extra = request.clone();
+            extra["script"] = "forbidden".into();
+            assert!(serde_json::from_value::<super::Request>(extra).is_err());
+        }
+    }
+    #[test]
+    fn channel_pack_native_placement_fields_reject_unknown_special_keys() {
+        let contract: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/channel-style-packs-v1.json"
+        ))
+        .unwrap();
+        let request = contract["requests"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|value| value["operation"] == "channel_pack_apply")
+            .unwrap();
+        for key in ["__proto__", "constructor", "toString"] {
+            for field in ["transform", "parent", "transform2d", "anchor", "position"] {
+                let mut value = request.clone();
+                let placement = &mut value["application"]["placements"][0];
+                placement["parent"] = serde_json::json!({"scope":"project", "id":"parent_item"});
+                placement["transform2d"] = serde_json::json!({"anchor":{"x":0.0,"y":0.0},"opacity":1.0,"position":{"unit":"pixels","x":0.0,"y":0.0},"rotationDeg":0.0,"scaleX":1.0,"scaleY":1.0,"skewXDeg":0.0,"skewYDeg":0.0});
+                serde_json::from_value::<super::Request>(value.clone()).unwrap();
+                let selected = if field == "anchor" || field == "position" {
+                    &mut value["application"]["placements"][0]["transform2d"][field]
+                } else {
+                    &mut value["application"]["placements"][0][field]
+                };
+                selected[key] = true.into();
+                assert!(
+                    serde_json::from_value::<super::Request>(value).is_err(),
+                    "{field}/{key}"
+                );
+            }
+        }
+    }
     use super::*;
     use serde::de::DeserializeOwned;
     use strum::VariantNames;

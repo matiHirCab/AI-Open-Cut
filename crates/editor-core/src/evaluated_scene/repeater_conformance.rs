@@ -74,6 +74,7 @@ fn signed_copy_offsets_shift_complete_component_source_clock() {
             json!([definition("leaf", json!([child]))]),
         );
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("narrationManifests");
         value.as_object_mut().unwrap().remove("audioBuses");
         value.as_object_mut().unwrap().remove("soundDefinitions");
         value["components"][0]["markers"] = json!([]);
@@ -124,6 +125,7 @@ fn shifted_sources_can_enter_ancestor_clips_but_cannot_escape_them() {
             json!([definition("leaf", json!([child]))]),
         );
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("narrationManifests");
         value.as_object_mut().unwrap().remove("audioBuses");
         value.as_object_mut().unwrap().remove("soundDefinitions");
         value["components"][0]["markers"] = json!([]);
@@ -461,6 +463,11 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
     let group = json!({"type":"group","id":"parent","startMs":0,"durationMs":u64::MAX,"hidden":true,"staggerMs":1,"stackOrder":0,"zIndex":0});
     let mut value = project_value(json!([group, first, last]), json!([]));
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
+    value
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     value["audioBuses"] = json!(crate::default_audio_buses());
     value["soundDefinitions"] = json!([]);
     value["markers"] = json!([]);
@@ -478,6 +485,11 @@ fn hidden_stagger_overflow_and_unused_animated_extent_fail_before_copies() {
         json!([definition("unused", json!([group, child]))]),
     );
     value["schemaVersion"] = json!(crate::PROJECT_SCHEMA_VERSION);
+    value
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     value["audioBuses"] = json!(crate::default_audio_buses());
     value["soundDefinitions"] = json!([]);
     value["markers"] = json!([]);
@@ -510,6 +522,7 @@ fn staggered_controller_restores_short_source_with_fractional_signed_clocks() {
         root["staggerMs"] = json!(200);
         let mut value = project_value(json!([root]), json!([definition("leaf", json!(children))]));
         value["schemaVersion"] = json!(26);
+        value.as_object_mut().unwrap().remove("narrationManifests");
         value.as_object_mut().unwrap().remove("audioBuses");
         value.as_object_mut().unwrap().remove("soundDefinitions");
         value["markers"] = json!([]);
@@ -572,6 +585,7 @@ fn nested_repeater_controller_shifts_source_stages_once_and_preserves_outside_cl
         ]),
     );
     value["schemaVersion"] = json!(26);
+    value.as_object_mut().unwrap().remove("narrationManifests");
     value.as_object_mut().unwrap().remove("audioBuses");
     value.as_object_mut().unwrap().remove("soundDefinitions");
     value["markers"] = json!([]);

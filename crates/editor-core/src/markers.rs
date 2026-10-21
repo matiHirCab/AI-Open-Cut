@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::{CoreError, ErrorCode, Marker, Project, TimeExpression, TimelineItem};
 
 mod speech;
-pub(crate) use speech::generate_speech_markers;
+pub(crate) use speech::{generate_speech_markers, speech_marker_selection};
 
 pub(crate) const MAX_SAFE: u64 = 9_007_199_254_740_991;
 

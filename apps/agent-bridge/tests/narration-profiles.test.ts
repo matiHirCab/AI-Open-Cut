@@ -94,7 +94,7 @@ it.each(Object.entries(markerPins))(
       new URL(`../../../contracts/${name}`, import.meta.url),
       "utf8"
     );
-    expect(JSON.parse(raw).projectSchemaVersion).toBe(46);
+    expect(JSON.parse(raw).projectSchemaVersion).toBe(47);
     expect(
       createHash("sha256").update(restoreNarrationProfileRaw(raw)).digest("hex")
     ).toBe(digest);

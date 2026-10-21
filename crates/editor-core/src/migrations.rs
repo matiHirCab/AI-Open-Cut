@@ -24,6 +24,12 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 47 && !project.narration_manifests.is_empty() {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "narration manifests require schema47",
+        ));
+    }
     project.validate_graphic_slot_schema()?;
     if project.schema_version <= PROJECT_SCHEMA_VERSION {
         project.validate_audio_bus_model()?;
@@ -401,7 +407,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=45 => {
+        9..=46 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -455,6 +461,7 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: if schema_version >= 39 {

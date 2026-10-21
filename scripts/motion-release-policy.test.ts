@@ -1,6 +1,7 @@
 import { expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { CHANNEL_WORKFLOW_LINE, restoreChannelWorkflowPredecessor } from "./channel-pack-workflow-projection";
 const root = resolve(import.meta.dir, "..");
 const workflow = readFileSync(resolve(root, ".github/workflows/motion-release-gates.yml"), "utf8");
 const driver = readFileSync(resolve(root, "apps/agent-bridge/scripts/run-motion-release.ts"), "utf8");
@@ -112,10 +113,23 @@ for (const [name, hash] of FROZEN) {
   it(`retains verified predecessor ${name} and rejects altered bytes`, () => {
     const original = readFileSync(resolve(root, name));
     const digest = (bytes: Uint8Array) => new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
-    expect(digest(original)).toBe(hash);
+    const predecessor = (bytes: Uint8Array) => name === ".github/workflows/bun-ci.yml" ? Buffer.from(restoreChannelWorkflowPredecessor(Buffer.from(bytes).toString("utf8"))) : bytes;
+    expect(digest(predecessor(original))).toBe(hash);
     const changed = Buffer.from(original);
     changed[0] = (changed[0] ?? 0) ^ 1;
-    expect(digest(changed)).not.toBe(hash);
+    expect(digest(predecessor(changed))).not.toBe(hash);
+  });
+}
+
+for (const mutation of ["missing", "duplicate", "masked", "moved", "wrong binary"] as const) {
+  it(`rejects ${mutation} channel native coverage before the unchanged frozen predecessor proof`, () => {
+    const current = readFileSync(resolve(root, ".github/workflows/bun-ci.yml"), "utf8");
+    const changed = mutation === "missing" ? current.replace(CHANNEL_WORKFLOW_LINE, "")
+      : mutation === "duplicate" ? current.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.repeat(2))
+      : mutation === "masked" ? current.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.trimEnd() + " || true\n")
+      : mutation === "moved" ? current.replace(CHANNEL_WORKFLOW_LINE, "") + CHANNEL_WORKFLOW_LINE
+      : current.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.replace("target/debug/opencut-headless", "target/release/foreign-headless"));
+    expect(() => restoreChannelWorkflowPredecessor(changed)).toThrow();
   });
 }
 

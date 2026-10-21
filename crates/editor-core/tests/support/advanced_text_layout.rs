@@ -42,12 +42,14 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     let dir = core.paths().project_dir(&id).unwrap();
     let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(20);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     std::fs::write(dir.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(dir.join("history.json"), serde_json::to_vec(&json!({"undo":[old],"redo":[old]})).unwrap()).unwrap();
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     old["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    old.as_object_mut().unwrap().entry("narrationManifests").or_insert_with(|| serde_json::json!([]));
     old["audioBuses"] = serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     old["soundDefinitions"] = json!([]);
     assert_eq!(migrated, old);
@@ -58,6 +60,7 @@ fn schema_20_layout_migration_preserves_complete_current_and_history() {
     core.get_project(&id).unwrap();
     assert_eq!(bytes(&core, &id), first);
     old["schemaVersion"] = json!(20);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     old["tracks"][1]["items"][0]["style"]["layout"] = json!({});
@@ -196,6 +199,7 @@ fn persisted_layout_classification_preserves_legacy_and_unrelated_errors() {
             1 => value["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION + 1),
             _ => {
                 value["schemaVersion"] = json!(20);
+                value.as_object_mut().unwrap().remove("narrationManifests");
                 value.as_object_mut().unwrap().remove("audioBuses");
                 value.as_object_mut().unwrap().remove("soundDefinitions");
                 let text = value["tracks"].as_array_mut().unwrap().iter_mut()
@@ -238,6 +242,7 @@ fn write_legacy_layout_generation(path: &std::path::Path, version: u32) {
     let mut value: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
     let downgrade = |project: &mut Value| {
         project["schemaVersion"] = json!(version);
+        if project["schemaVersion"].as_u64().is_some_and(|version| version < 47) { project.as_object_mut().unwrap().remove("narrationManifests"); }
         project.as_object_mut().unwrap().remove("audioBuses");
         project.as_object_mut().unwrap().remove("soundDefinitions");
     };

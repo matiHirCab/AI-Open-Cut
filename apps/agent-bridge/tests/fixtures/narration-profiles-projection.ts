@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import {
+  removeMain47Peers,
+  restoreMain47PeersRaw,
+} from "./durable-main47-peers";
+import {
   removeDurableMcpAdditions,
   removeDurableOwnershipAddition,
   restoreDurableRaw,
@@ -39,7 +43,10 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  let result = removeShortPlanningOwnership(source, copy);
+  let result = removeShortPlanningOwnership(
+    removeMain47Peers(source, name, copy),
+    false
+  );
   if (name === "mcp-surface-v1") {
     result = removeDurableMcpAdditions(result, false);
   }
@@ -93,7 +100,7 @@ export const removeNarrationProfileAdditions = <T>(
 };
 
 export const restoreNarrationCatalogMarker = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeMain47Peers(source, "marker");
   if (at(result, ["projectSchemaVersion"]) === 46) {
     (result as RecordValue).projectSchemaVersion = 45;
   }
@@ -101,7 +108,9 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
 };
 
 export const restoreNarrationProfileRaw = (current: string): string => {
-  const input = restoreDurableRaw(restoreShortPlanningOwnershipRaw(current));
+  const input = restoreDurableRaw(
+    restoreShortPlanningOwnershipRaw(restoreMain47PeersRaw(current))
+  );
   const source = JSON.parse(input);
   if (source.projectSchemaVersion === 46) {
     const raw = input.replace(

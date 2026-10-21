@@ -189,6 +189,21 @@ impl Storage for FileSystemStorage {
     }
 }
 
+/// Fail closed before a read-only snapshot can bypass ordinary recovery.
+/// The caller holds the project lock; no observation here mutates storage.
+pub(crate) fn require_no_pending_transaction(
+    storage: &dyn Storage,
+    dir: &Path,
+) -> Result<(), CoreError> {
+    match storage.entry_kind(&transaction_path(dir)) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        _ => Err(CoreError::new(
+            ErrorCode::ProjectRecoveryFailed,
+            "source has pending or unavailable recovery state; explicitly open/recover it before capture",
+        )),
+    }
+}
+
 pub(crate) fn read_json<T: DeserializeOwned>(
     storage: &dyn Storage,
     path: &Path,

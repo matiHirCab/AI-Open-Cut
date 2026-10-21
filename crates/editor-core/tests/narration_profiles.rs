@@ -308,6 +308,7 @@ fn profiled_generation_reopen_history_and_stale_project_revision_are_exact() {
         ] {
             let mut forged: Value = serde_json::from_slice(&current).unwrap();
             forged["schemaVersion"] = json!(45);
+            forged.as_object_mut().unwrap().remove("narrationManifests");
             forged["assets"][0]["origin"]["generation"]["request"]["narrationProfile"] =
                 attribution;
             let (bad_current, bad_history) = if retained {
@@ -344,6 +345,7 @@ fn legacy_current_and_retained_history_migrate_atomically_and_future_versions_fa
     let dir = core.paths().projects_root().join(&id);
     let mut legacy = serde_json::to_value(&original).unwrap();
     legacy["schemaVersion"] = json!(45);
+    legacy.as_object_mut().unwrap().remove("narrationManifests");
     let history = json!({"undo":[legacy.clone()],"redo":[legacy.clone()]});
     std::fs::write(
         dir.join("project.json"),
@@ -361,10 +363,10 @@ fn legacy_current_and_retained_history_migrate_atomically_and_future_versions_fa
     );
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
-    assert_eq!(history["undo"][0]["schemaVersion"], 46);
-    assert_eq!(history["redo"][0]["schemaVersion"], 46);
+    assert_eq!(history["undo"][0]["schemaVersion"], PROJECT_SCHEMA_VERSION);
+    assert_eq!(history["redo"][0]["schemaVersion"], PROJECT_SCHEMA_VERSION);
     let mut future = serde_json::to_value(&original).unwrap();
-    future["schemaVersion"] = json!(47);
+    future["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION + 1);
     let bytes = serde_json::to_vec(&future).unwrap();
     std::fs::write(dir.join("project.json"), &bytes).unwrap();
     let prior_history = std::fs::read(dir.join("history.json")).unwrap();

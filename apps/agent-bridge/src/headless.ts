@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { z } from "zod/v4";
 
 import type { BridgeConfig } from "./config";
-import { BridgeError, eventSchema } from "./headless-events";
+import { BridgeError, eventSchema, reportedCoreError } from "./headless-events";
 import { confirmedCoreError } from "./production-requests/core-outcome";
 import { RenderWorker } from "./render-worker";
 
@@ -227,15 +227,7 @@ export const callHeadless = async <Output>(
       if (event.type === "progress") {
         options.onProgress?.(event.progress);
       } else if (event.type === "error") {
-        reportedError = confirmedCoreError(
-          new BridgeError(
-            event.error.code,
-            event.error.message,
-            event.error.retryable,
-            undefined,
-            event.error
-          )
-        );
+        reportedError = confirmedCoreError(reportedCoreError(event.error));
       } else {
         result = schema.parse(event.result);
       }

@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 import { BLEND_MODES } from "./blend-modes";
 import { ffmpegSpawnSchema } from "./ffmpeg-spawn";
+import { createNarrationModelSchemas } from "./narration-blocks/contract";
 import { gridDescriptorSchema } from "./procedural-grids";
 import { renderBudgetSchema } from "./render-budget";
 import {
@@ -683,7 +684,7 @@ export const statusSchema = z
         projectsDirectory: pathDiagnosticSchema,
       })
       .strict(),
-    projectSchemaVersion: z.literal(46).optional(),
+    projectSchemaVersion: z.literal(47).optional(),
     protocolVersion: z.literal(1),
     ready: z.boolean(),
     styledTextLayersVersion: z.literal(1).optional(),
@@ -1073,6 +1074,15 @@ export const speechMarkerPolicySchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("all_word") }),
 ]);
+
+const narrationModels = createNarrationModelSchemas(
+  resolvedNarrationRequestSchema,
+  speechMarkerPolicySchema
+);
+export const narrationPlanInputSchema = narrationModels.planInput;
+export const narrationPlanSchema = narrationModels.plan;
+export const narrationPreparedBlockSchema = narrationModels.prepared;
+export const narrationManifestSchema = narrationModels.manifest;
 
 export const speechAlignmentSchema = z
   .object({
@@ -2120,8 +2130,9 @@ export const projectStateSchema = z
         id,
         markers: z.array(markerSchema).max(4096),
         name: z.string(),
+        narrationManifests: z.array(narrationManifestSchema).max(32),
         revision: z.int().nonnegative(),
-        schemaVersion: z.literal(46),
+        schemaVersion: z.literal(47),
         settings: z
           .object({
             fps: z.int().positive(),

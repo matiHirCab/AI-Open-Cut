@@ -43,7 +43,9 @@ pub use renderer::{
     PreviewResolution, PreviewReviewOptions, Renderer,
 };
 pub use store::{
-    CommitGeneratedAssetRequest, CommitGeneratedAssetResult, CommitTranscriptionRequest,
+    ChannelAppliedCaptionRole, ChannelAppliedComponent, ChannelCaptureResult,
+    ChannelPackApplyResult, ChannelPackList, CommitGeneratedAssetRequest,
+    CommitGeneratedAssetResult, CommitNarrationBlocksResult, CommitTranscriptionRequest,
     EditorCore, ProjectSummary, ReplaceGeneratedAssetRequest, ReplaceGeneratedAssetResult,
     ResolvedAssetInput, TranscriptionSegment, WriteResult,
 };

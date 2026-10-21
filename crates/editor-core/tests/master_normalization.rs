@@ -266,6 +266,12 @@ fn all43_sources_and_retained_history_migrate_without_inventing_controls() {
         .map(|version| {
             let mut source = original.clone();
             source["schemaVersion"] = json!(version);
+            if source["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 47)
+            {
+                source.as_object_mut().unwrap().remove("narrationManifests");
+            }
             for (introduced, field) in [
                 (40, "soundDefinitions"),
                 (39, "audioBuses"),
@@ -336,6 +342,15 @@ fn premature_null_invalid_and_future_current_or_history_are_rejected_without_rew
             let dir = root.path().join("projects").join(&id);
             let mut invalid = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
             invalid["schemaVersion"] = json!(version);
+            if invalid["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 47)
+            {
+                invalid
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
+            }
             invalid["masterNormalization"] = value;
             let (file, document) = if retained {
                 ("history.json", json!({"undo":[invalid],"redo":[]}))
@@ -402,6 +417,10 @@ fn schema43_managed_speech_provenance_and_history_survive_normalization_adoption
     let dir = root.path().join("projects").join(&id);
     let mut predecessor = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     predecessor["schemaVersion"] = json!(43);
+    predecessor
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     assert!(predecessor.get("masterNormalization").is_none());
     std::fs::write(
         dir.join("project.json"),
