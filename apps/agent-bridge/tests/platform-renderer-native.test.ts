@@ -158,7 +158,9 @@ for (const mode of ["source", "packaged"] as const) {
       await verifyPreviewDisposal(
         mode === "packaged"
           ? join(runtime, `opencut-headless${suffix}`)
-          : required("OPENCUT_PLATFORM_SOURCE_HEADLESS")
+          : required("OPENCUT_PLATFORM_SOURCE_HEADLESS"),
+        process.env,
+        mode
       );
       const environment = {
         ...Object.fromEntries(
