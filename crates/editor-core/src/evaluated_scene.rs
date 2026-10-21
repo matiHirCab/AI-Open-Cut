@@ -1646,6 +1646,7 @@ impl InstanceTraversal<'_> {
             .as_ref()
             .map_or(0, |graph| graph.nodes.len());
         let mut local = Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: self.project.audio_buses.clone(),
@@ -4582,6 +4583,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: Vec::new(),
@@ -7162,6 +7164,7 @@ mod instance_tests {
         second["stackOrder"] = json!(1);
         second["slotValues"] = json!({"__proto__":{"type":"rich_text","value":{"runs":[{"text":"Red","color":"#ff0000","italic":true},{"text":"Blue","color":"#0000ff"}],"spans":[{"start":0,"end":3,"style":{"paintLayers":[]}}]}}});
         value["schemaVersion"] = json!(20);
+        value.as_object_mut().unwrap().remove("narrationManifests");
         value.as_object_mut().unwrap().remove("audioBuses");
         value.as_object_mut().unwrap().remove("soundDefinitions");
         let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());
@@ -7970,6 +7973,7 @@ mod instance_tests {
 
         let mut value = serde_json::to_value(&project).unwrap();
         value["schemaVersion"] = json!(20);
+        value.as_object_mut().unwrap().remove("narrationManifests");
         value.as_object_mut().unwrap().remove("audioBuses");
         value.as_object_mut().unwrap().remove("soundDefinitions");
         let records = crate::fonts::DEFAULT_FACES.map(|bytes| crate::fonts::record(bytes).unwrap());

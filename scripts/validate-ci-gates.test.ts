@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CHANNEL_WORKFLOW_LINE } from "./channel-pack-workflow-projection";
 import {
   assertFoundationParityResults,
   discoverActiveOpenSpecChanges,
@@ -35,6 +36,17 @@ const bunConfig = readFileSync(resolve(import.meta.dir, "..", "bunfig.toml"), "u
 const workflowBootstrapCommand =
   "bun --config=/dev/null --no-env-file run scripts/run-ci-policy.ts --attest-github-output";
 const protectedBun = "bun --config=bunfig.toml --no-env-file";
+
+for (const mutation of ["missing", "duplicate", "masked", "moved", "wrong binary"] as const) {
+  it(`rejects ${mutation} required channel CLI/native acceptance`, () => {
+    const changed = mutation === "missing" ? workflow.replace(CHANNEL_WORKFLOW_LINE, "")
+      : mutation === "duplicate" ? workflow.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.repeat(2))
+      : mutation === "masked" ? workflow.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.trimEnd() + " || true\n")
+      : mutation === "moved" ? workflow.replace(CHANNEL_WORKFLOW_LINE, "") + CHANNEL_WORKFLOW_LINE
+      : workflow.replace(CHANNEL_WORKFLOW_LINE, CHANNEL_WORKFLOW_LINE.replace("target/debug/opencut-headless", "target/release/foreign-headless"));
+    expect(() => validateCiGates(changed)).toThrow();
+  });
+}
 
 function moonPolicySources(overrides: Partial<MoonPolicySources> = {}): MoonPolicySources {
   return {
@@ -1395,8 +1407,8 @@ describe("CI parity gate policy", () => {
   it("rejects an instrumented headless build before mandatory MCP matte proof", () => {
     const weakened = replaceRequired(
       workflow,
-      "          cargo build -p opencut-headless\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts",
-      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts"
+      "          cargo build -p opencut-headless\n          OPENCUT_HEADLESS_PATH=\"$GITHUB_WORKSPACE/target/debug/opencut-headless\" bun run --cwd apps/agent-bridge tests/channel-packs-workflow.ts\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts",
+      "          cargo build -p opencut-headless --features raster-cache-test-hooks\n          OPENCUT_HEADLESS_PATH=\"$GITHUB_WORKSPACE/target/debug/opencut-headless\" bun run --cwd apps/agent-bridge tests/channel-packs-workflow.ts\n          bun run --cwd apps/agent-bridge test:unit --no-file-parallelism tests/track-matte-native.test.ts"
     );
     expect(() => validateCiGates(weakened)).toThrow(
       "render-parity native step must use the exact fail-closed command body"
@@ -2370,9 +2382,22 @@ describe("native role team mandatory consumers", () => {
 });
 
 describe("narration profile mandatory consumers", () => {
-  for (const consumer of [" --test narration_profiles", " tests/narration-profiles.test.ts"]) {
+  for (const consumer of [" --test channel_style_packs", " tests/channel-packs.test.ts", " --test narration_profiles", " tests/narration-profiles.test.ts"]) {
     for (const mask of [false, true]) {
       it(`rejects narration profile consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
+
+describe("narration block mandatory consumers", () => {
+  for (const consumer of [" --test narration_blocks", " tests/narration-blocks.test.ts", " tests/narration-blocks-workflow.test.ts", " tests/narration-blocks-cli.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects narration block consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
         const sources = moonPolicySources();
         const parsed = JSON.parse(sources.bridgePackage!);
         parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 47,
+  "projectSchemaVersion": 48,
   "operations": [
     "commit_artwork",
     "prepare_artwork"
@@ -124,6 +124,10 @@
       "apps/agent-bridge/src/schemas.ts",
       "apps/agent-bridge/src/headless-contract.ts",
       "apps/agent-bridge/tests/artwork-contract.ts",
+      "apps/agent-bridge/tests/artwork-integration.test.ts",
+      "apps/agent-bridge/tests/fixtures/artwork-integration-projection.ts",
+      "apps/agent-bridge/tests/fixtures/artwork-integration-history.ts",
+      "apps/agent-bridge/tests/fixtures/artwork-integration-pins.json",
       "apps/agent-bridge/tests/artwork.test.ts",
       "apps/agent-bridge/tests/fixtures/artwork-projection.ts",
       "apps/agent-bridge/tests/contracts.test.ts",

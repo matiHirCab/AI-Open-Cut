@@ -361,6 +361,7 @@ fn legacy_adoption_aligned_replacement_history_and_no_rewrite_reopen() {
     let project_file = dir.join("project.json");
     let mut legacy = read_json(&project_file);
     legacy["schemaVersion"] = json!(37);
+    legacy.as_object_mut().unwrap().remove("narrationManifests");
     legacy.as_object_mut().unwrap().remove("audioBuses");
     legacy.as_object_mut().unwrap().remove("soundDefinitions");
     write_json(&project_file, &legacy);
@@ -449,11 +450,13 @@ fn invalid_current_and_retained_alignment_or_future_schema_never_adopt_bytes() {
                 "unknown-duration" => broken["assets"][0]["durationMs"] = Value::Null,
                 "pre-introduction" => {
                     broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("narrationManifests");
                     broken.as_object_mut().unwrap().remove("audioBuses");
                     broken.as_object_mut().unwrap().remove("soundDefinitions");
                 }
                 "pre-introduction-null" => {
                     broken["schemaVersion"] = json!(37);
+                    broken.as_object_mut().unwrap().remove("narrationManifests");
                     broken.as_object_mut().unwrap().remove("audioBuses");
                     broken.as_object_mut().unwrap().remove("soundDefinitions");
                     broken["assets"][0]["origin"]["generation"]["alignment"] = Value::Null;
@@ -488,10 +491,18 @@ fn mixed_legacy_history_preserves_genuine_unaligned_speech_without_inference() {
     let history_file = dir.join("history.json");
     let mut project = read_json(&project_file);
     project["schemaVersion"] = json!(37);
+    project
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     project.as_object_mut().unwrap().remove("audioBuses");
     project.as_object_mut().unwrap().remove("soundDefinitions");
     let mut history = read_json(&history_file);
     history["undo"][0]["schemaVersion"] = json!(36);
+    history["undo"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     history["undo"][0]
         .as_object_mut()
         .unwrap()
@@ -554,6 +565,24 @@ fn raw_duplicate_alignment_fields_remain_rejected_after_legacy_inspection() {
     }
 }
 
+fn restore_integration_catalog_marker(current: &str, name: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let pins: Value = serde_json::from_str(include_str!(
+        "../../../apps/agent-bridge/tests/fixtures/artwork-integration-pins.json"
+    ))
+    .unwrap();
+    assert_eq!(current.matches("\"projectSchemaVersion\": 48").count(), 1);
+    let previous = current.replacen(
+        "\"projectSchemaVersion\": 48",
+        "\"projectSchemaVersion\": 47",
+        1,
+    );
+    let digest = format!("{:x}", Sha256::digest(previous.as_bytes()));
+    assert_eq!(digest, pins["main47"][name].as_str().unwrap(), "{name}");
+    assert_eq!(digest, pins["artwork47"][name].as_str().unwrap(), "{name}");
+    previous
+}
+
 fn restore_artwork_catalog_marker(current: &str, name: &str, pins: &Value) -> String {
     use sha2::{Digest, Sha256};
     assert_eq!(
@@ -584,6 +613,8 @@ fn artwork_marker_inverse_rejects_missing_duplicate_and_unrelated_raw_drift() {
     .unwrap();
     let name = "animation-channels-v1.json";
     let current = include_str!("../../../contracts/animation-channels-v1.json");
+    let current = restore_integration_catalog_marker(current, name);
+    let current = current.as_str();
     let previous = restore_artwork_catalog_marker(current, name, &pins);
     assert!(previous.contains("\"projectSchemaVersion\": 46"));
     let missing = current.replacen(
@@ -620,17 +651,36 @@ fn current_catalog_markers_preserve_independently_captured_schema37_bytes() {
         "../../../apps/agent-bridge/tests/fixtures/audio-events-predecessor-pins.json"
     ))
     .unwrap();
-    let artwork_pins: Value = serde_json::from_str(include_str!(
-        "../../../apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json"
-    ))
-    .unwrap();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts");
     for name in pins["currentMarkerCatalogs"].as_array().unwrap() {
         let name = name.as_str().unwrap();
         let current = std::fs::read_to_string(root.join(name)).unwrap();
-        // Strip only the exact additive AF1 marker before the unchanged historical chain.
-        let current = if artwork_pins["markers"].get(name).is_some() {
-            restore_artwork_catalog_marker(&current, name, &artwork_pins)
+        let current = if current.contains("\"projectSchemaVersion\": 48") {
+            restore_integration_catalog_marker(&current, name)
+        } else {
+            current
+        };
+        let current = if current.contains("\"projectSchemaVersion\": 47") {
+            let narration_block_pins: Value = serde_json::from_str(include_str!(
+                "../../../apps/agent-bridge/tests/fixtures/narration-blocks-predecessor-pins.json"
+            ))
+            .unwrap();
+            assert_eq!(
+                current.matches("\"projectSchemaVersion\": 47").count(),
+                1,
+                "{name}"
+            );
+            let previous = current.replacen(
+                "\"projectSchemaVersion\": 47",
+                "\"projectSchemaVersion\": 46",
+                1,
+            );
+            assert_eq!(
+                format!("{:x}", Sha256::digest(previous.as_bytes())),
+                narration_block_pins[name],
+                "{name}"
+            );
+            previous
         } else {
             current
         };
@@ -847,6 +897,7 @@ fn aligned_request_failures_preserve_current_and_legacy_files_and_exact_codes() 
             let path = dir.join("project.json");
             let mut raw = read_json(&path);
             raw["schemaVersion"] = json!(37);
+            raw.as_object_mut().unwrap().remove("narrationManifests");
             raw.as_object_mut().unwrap().remove("audioBuses");
             raw.as_object_mut().unwrap().remove("soundDefinitions");
             write_json(&path, &raw);
@@ -903,5 +954,27 @@ fn aligned_request_failures_preserve_current_and_legacy_files_and_exact_codes() 
             );
             assert_eq!(inventory(&dir), before, "replace/legacy={legacy}/{fault}");
         }
+    }
+}
+
+#[test]
+fn integration_marker_inverse_rejects_missing_duplicate_and_unrelated_raw_drift() {
+    let name = "animation-channels-v1.json";
+    let current = include_str!("../../../contracts/animation-channels-v1.json");
+    let missing = current.replacen(
+        "\"projectSchemaVersion\": 48",
+        "\"projectSchemaVersion\": 47",
+        1,
+    );
+    let duplicate = current.replacen(
+        "\"projectSchemaVersion\": 48",
+        "\"projectSchemaVersion\": 48, \"projectSchemaVersion\": 48",
+        1,
+    );
+    for malformed in [missing, duplicate, format!("{current}\n")] {
+        assert!(
+            std::panic::catch_unwind(|| restore_integration_catalog_marker(&malformed, name))
+                .is_err()
+        );
     }
 }

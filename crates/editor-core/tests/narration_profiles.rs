@@ -308,6 +308,7 @@ fn profiled_generation_reopen_history_and_stale_project_revision_are_exact() {
         ] {
             let mut forged: Value = serde_json::from_slice(&current).unwrap();
             forged["schemaVersion"] = json!(45);
+            forged.as_object_mut().unwrap().remove("narrationManifests");
             forged["assets"][0]["origin"]["generation"]["request"]["narrationProfile"] =
                 attribution;
             let (bad_current, bad_history) = if retained {
@@ -344,6 +345,7 @@ fn legacy_current_and_retained_history_migrate_atomically_and_future_versions_fa
     let dir = core.paths().projects_root().join(&id);
     let mut legacy = serde_json::to_value(&original).unwrap();
     legacy["schemaVersion"] = json!(45);
+    legacy.as_object_mut().unwrap().remove("narrationManifests");
     let history = json!({"undo":[legacy.clone()],"redo":[legacy.clone()]});
     std::fs::write(
         dir.join("project.json"),

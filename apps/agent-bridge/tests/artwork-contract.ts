@@ -29,6 +29,7 @@ import {
 } from "../src/artwork/contract";
 import type { HeadlessRequest } from "../src/headless-contract";
 import additions from "./fixtures/artwork-additions.json";
+import { restoreArtworkBranchRaw } from "./fixtures/artwork-integration-history";
 import pins from "./fixtures/artwork-predecessor-pins.json";
 import {
   removeArtworkAdditions,
@@ -128,7 +129,7 @@ export const verifyArtworkContract = () => {
     ).toBe(false);
   }
   expect(contract.version).toBe(1);
-  expect(contract.projectSchemaVersion).toBe(47);
+  expect(contract.projectSchemaVersion).toBe(48);
   expect(contract.limits).toEqual(ARTWORK_LIMITS);
   const parameters = artworkParametersSchema.parse(contract.parameters);
   const manifest = artworkManifestSchema.parse(contract.manifest);
@@ -160,7 +161,8 @@ export const verifyArtworkContract = () => {
   expect(
     MCP.$defs.ProjectPropertiesAssetsItemsProperties.artworkDerivation
   ).toEqual(structural);
-  const predecessor = removeArtworkAdditions(MCP, "mcp-surface-v1");
+  const historical = JSON.parse(restoreArtworkBranchRaw(JSON.stringify(MCP)));
+  const predecessor = removeArtworkAdditions(historical, "mcp-surface-v1");
   expect(predecessor.tools).toEqual(MCP.tools);
   expect(Object.keys(predecessor.toolDefinitions)).toEqual(
     Object.keys(MCP.toolDefinitions)
@@ -174,7 +176,9 @@ export const verifyArtworkContract = () => {
       new URL(`../../../contracts/${name}.json`, import.meta.url),
       "utf8"
     );
-    expect(digest(restoreArtworkRaw(raw)), name).toBe(pins[name]);
+    expect(digest(restoreArtworkRaw(restoreArtworkBranchRaw(raw))), name).toBe(
+      pins[name]
+    );
   }
   for (const [name, expected] of Object.entries(pins.markers)) {
     const raw = readFileSync(
@@ -184,9 +188,11 @@ export const verifyArtworkContract = () => {
     expect(JSON.parse(raw).projectSchemaVersion).toBe(
       contract.projectSchemaVersion
     );
-    expect(digest(restoreArtworkRaw(raw)), name).toBe(expected);
+    expect(digest(restoreArtworkRaw(restoreArtworkBranchRaw(raw))), name).toBe(
+      expected
+    );
   }
-  expect(digest(JSON.stringify(expandMcpSurfaceCatalog(MCP)))).toBe(
+  expect(digest(JSON.stringify(expandMcpSurfaceCatalog(historical)))).toBe(
     pins.expandedMcpSha256
   );
   expect(digest(JSON.stringify(expandMcpSurfaceCatalog(predecessor)))).toBe(

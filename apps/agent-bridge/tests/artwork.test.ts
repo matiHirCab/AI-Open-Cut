@@ -10,6 +10,7 @@ import {
   assertArtworkConsumer,
   verifyArtworkContract,
 } from "./artwork-contract";
+import { removeArtworkIntegration } from "./fixtures/artwork-integration-projection";
 import { removeArtworkAdditions } from "./fixtures/artwork-projection";
 import { removeShortPlanningOwnership } from "./fixtures/short-candidates-projection";
 
@@ -56,7 +57,7 @@ it("retains unrelated matching data and independent planning additions in either
       unknown
     >
   ).artworkDerivation = { version: 47 };
-  const previous = removeArtworkAdditions(source, "mcp-surface-v1");
+  const previous = removeArtworkIntegration(source);
   expect(previous.toolDefinitions.editor_get_status.annotations).toMatchObject({
     artworkDerivation: { version: 47 },
   });
@@ -76,17 +77,16 @@ it("retains unrelated matching data and independent planning additions in either
   categories.categories.sourceGroundedShortPlanning =
     ownership.categories.sourceGroundedShortPlanning;
   const left = removeShortPlanningOwnership(
-    removeArtworkAdditions(categories, "contract-ownership-v1")
+    removeArtworkIntegration(categories)
   );
-  const right = removeArtworkAdditions(
-    removeShortPlanningOwnership(categories),
-    "contract-ownership-v1"
+  const right = removeArtworkIntegration(
+    removeShortPlanningOwnership(categories)
   );
   expect(left).toEqual(right);
   expect(left).toEqual({ categories: {} });
-  expect(
-    removeArtworkAdditions(categories, "contract-ownership-v1").categories
-  ).toHaveProperty("sourceGroundedShortPlanning");
+  expect(removeArtworkIntegration(categories).categories).toHaveProperty(
+    "sourceGroundedShortPlanning"
+  );
   expect(removeShortPlanningOwnership(categories).categories).toHaveProperty(
     "artworkPreparation"
   );
@@ -103,14 +103,12 @@ it("rejects missing changed or narrowed artwork schema additions without erasing
       value.$defs.ProjectPropertiesAssetsItemsProperties.artworkDerivation.properties.sourceWidth.maximum = 511;
     },
     (value: typeof MCP) => {
-      value.toolDefinitions.editor_get_status.outputSchema.properties.projectSchemaVersion.const = 48;
+      value.toolDefinitions.editor_get_status.outputSchema.properties.projectSchemaVersion.const = 49;
     },
   ]) {
     const value = structuredClone(MCP);
     mutate(value);
-    expect(() => removeArtworkAdditions(value, "mcp-surface-v1")).toThrow(
-      "Incorrect artwork addition"
-    );
+    expect(() => removeArtworkIntegration(value)).toThrow();
   }
 });
 

@@ -1,0 +1,857 @@
+{
+  "version": 1,
+  "projectSchemaVersion": 48,
+  "operations": [
+    "commit_narration_blocks",
+    "detach_narration_block",
+    "narration_blocks_plan"
+  ],
+  "limits": {
+    "sourceBytes": 32768,
+    "blocksPerPlan": 32,
+    "blockTextBytes": 4096,
+    "blockTextScalars": 4096,
+    "spokenSegments": 32,
+    "requestBytes": 131072,
+    "manifestBytes": 524288,
+    "projectManifestBytes": 4194304,
+    "projectManifests": 32,
+    "projectBlocks": 256,
+    "createdReferences": 100,
+    "inputBytes": 16777216,
+    "responseBytes": 1048576,
+    "sessionGroups": 4,
+    "sessionTokens": 128
+  },
+  "manifestRequiredKeys": [
+    "id",
+    "sourceText",
+    "maxTextCharacters",
+    "blocks",
+    "markerPolicy"
+  ],
+  "manifestOptionalKeys": [
+    "caption"
+  ],
+  "defaultMarkerPolicy": {
+    "type": "none"
+  },
+  "nativeCueExample": "m_11111111-1111-4111-8111-111111111111",
+  "planningCases": [
+    {
+      "name": "whitespace",
+      "text": "  Hola. Adiós.  ",
+      "boundaries": [
+        8,
+        16
+      ],
+      "displays": [
+        "  Hola. ",
+        "Adiós.  "
+      ],
+      "requests": [
+        "Hola.",
+        "Adiós."
+      ],
+      "paragraphs": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "scalar-emoji",
+      "text": "A😀. B.",
+      "boundaries": [
+        4,
+        6
+      ],
+      "displays": [
+        "A😀. ",
+        "B."
+      ],
+      "requests": [
+        "A😀.",
+        "B."
+      ],
+      "paragraphs": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "crlf-paragraph",
+      "text": "A.\r\n\r\nB.",
+      "boundaries": [
+        6,
+        8
+      ],
+      "displays": [
+        "A.\r\n\r\n",
+        "B."
+      ],
+      "requests": [
+        "A.",
+        "B."
+      ],
+      "paragraphs": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "automatic-abbreviation",
+      "text": "Dr. Ada waits. Next.",
+      "displays": [
+        "Dr. ",
+        "Ada waits. ",
+        "Next."
+      ],
+      "requests": [
+        "Dr.",
+        "Ada waits.",
+        "Next."
+      ],
+      "ends": [
+        4,
+        15,
+        20
+      ],
+      "paragraphs": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "manual-abbreviation",
+      "text": "Dr. Ada waits. Next.",
+      "boundaries": [
+        15,
+        20
+      ],
+      "displays": [
+        "Dr. Ada waits. ",
+        "Next."
+      ],
+      "requests": [
+        "Dr. Ada waits.",
+        "Next."
+      ],
+      "paragraphs": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "combining-scalars",
+      "text": "é. B.",
+      "boundaries": [
+        4,
+        6
+      ],
+      "displays": [
+        "é. ",
+        "B."
+      ],
+      "requests": [
+        "é.",
+        "B."
+      ],
+      "paragraphs": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ecmascript-feff-trim",
+      "text": "﻿A. ﻿",
+      "boundaries": [
+        5
+      ],
+      "displays": [
+        "﻿A. ﻿"
+      ],
+      "requests": [
+        "A."
+      ],
+      "paragraphs": [
+        0
+      ]
+    },
+    {
+      "name": "ecmascript-nel-preserved",
+      "text": "A.",
+      "boundaries": [
+        4
+      ],
+      "displays": [
+        "A."
+      ],
+      "requests": [
+        "A."
+      ],
+      "paragraphs": [
+        0
+      ]
+    }
+  ],
+  "invalidBoundaries": [
+    [
+      4,
+      4,
+      6
+    ],
+    [
+      5,
+      4,
+      6
+    ],
+    [
+      4
+    ],
+    [
+      0,
+      6
+    ],
+    [
+      7
+    ]
+  ],
+  "spokenCases": [
+    {
+      "text": "AI.",
+      "pronunciations": [
+        {
+          "term": "AI",
+          "spoken": "A I"
+        },
+        {
+          "term": "A",
+          "spoken": "Alpha"
+        }
+      ],
+      "segments": [
+        "Alpha I."
+      ]
+    },
+    {
+      "text": "AI.",
+      "pronunciations": [
+        {
+          "term": "A",
+          "spoken": "Alpha"
+        },
+        {
+          "term": "AI",
+          "spoken": "A I"
+        }
+      ],
+      "segments": [
+        "AlphaI."
+      ]
+    }
+  ],
+  "placement": {
+    "startMs": 100,
+    "durations": [
+      400,
+      700
+    ],
+    "starts": [
+      100,
+      500
+    ],
+    "ends": [
+      500,
+      1200
+    ]
+  },
+  "ownership": {
+    "canonical": "contracts/narration-blocks-v1.json",
+    "consumers": [
+      "crates/editor-core/src/model/narration_blocks.rs",
+      "crates/editor-core/src/validation/narration_blocks.rs",
+      "crates/editor-core/src/store/narration_blocks.rs",
+      "crates/editor-core/tests/narration_blocks.rs",
+      "apps/headless/src/main.rs",
+      "apps/headless/tests/protocol.rs",
+      "apps/agent-bridge/src/narration-blocks/contract.ts",
+      "apps/agent-bridge/src/narration-blocks/workflow.ts",
+      "apps/agent-bridge/src/narration-blocks-cli.ts",
+      "apps/agent-bridge/src/speech.ts",
+      "apps/agent-bridge/tests/narration-blocks.test.ts",
+      "apps/agent-bridge/tests/narration-blocks-workflow.ts",
+      "docs/narration-blocks.md",
+      "crates/editor-core/src/model.rs",
+      "crates/editor-core/src/migrations.rs",
+      "crates/editor-core/src/validation.rs",
+      "crates/editor-core/src/store.rs",
+      "crates/editor-core/src/store/narration_blocks/tests.rs",
+      "crates/editor-core/tests/support/narration_blocks.rs",
+      "crates/editor-core/src/markers/speech.rs",
+      "crates/editor-core/src/model/channel_style_packs.rs",
+      "crates/editor-core/src/store/channel_style_packs/capture.rs",
+      "crates/editor-core/src/store/channel_style_packs/portable.rs",
+      "crates/editor-core/tests/channel_style_packs.rs",
+      "apps/agent-bridge/src/narration-blocks/transport.ts",
+      "apps/agent-bridge/src/narration-blocks/errors.ts",
+      "apps/agent-bridge/src/narration-blocks/budget.ts",
+      "apps/agent-bridge/src/narration-blocks/cli.ts",
+      "apps/agent-bridge/src/headless-events.ts",
+      "apps/agent-bridge/src/headless.ts",
+      "apps/agent-bridge/src/headless-contract.ts",
+      "apps/agent-bridge/src/schemas.ts",
+      "apps/agent-bridge/tests/narration-blocks-workflow.test.ts",
+      "apps/agent-bridge/tests/narration-blocks-cli.test.ts",
+      "apps/agent-bridge/tests/fixtures/narration-blocks-provider.ts",
+      "apps/agent-bridge/tests/fixtures/narration-blocks-projection.ts",
+      "apps/agent-bridge/tests/fixtures/narration-blocks-predecessor-pins.json",
+      "apps/agent-bridge/tests/fixtures/narration-blocks-predecessor-compact-pins.json",
+      "apps/agent-bridge/tests/fixtures/narration-blocks-mcp-additions.json",
+      "apps/agent-bridge/tests/platform-renderer-native.test.ts",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/package.json",
+      "scripts/validate-ci-gates.ts",
+      "scripts/validate-ci-gates.test.ts",
+      "apps/agent-bridge/tests/fixtures/channel-packs-projection.ts",
+      "apps/agent-bridge/tests/fixtures/fake_tts_worker.py",
+      "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+      "apps/agent-bridge/tests/fixtures/short-candidates-projection.ts",
+      "apps/agent-bridge/tests/fixtures/speech-alignment-projection.ts",
+      "apps/agent-bridge/tests/motion-release-report.test.ts",
+      "apps/agent-bridge/tests/narration-profiles.test.ts",
+      "apps/agent-bridge/tests/release-documentation.test.ts",
+      "crates/editor-core/src/assets.rs",
+      "crates/editor-core/src/evaluated_scene.rs",
+      "crates/editor-core/src/evaluated_scene/extended_certification.rs",
+      "crates/editor-core/src/evaluated_scene/mattes.rs",
+      "crates/editor-core/src/evaluated_scene/repeater_conformance.rs",
+      "crates/editor-core/src/lib.rs",
+      "crates/editor-core/src/markers.rs",
+      "crates/editor-core/src/render_artifact/mattes/tests.rs",
+      "crates/editor-core/src/render_plan.rs",
+      "crates/editor-core/src/renderer.rs",
+      "crates/editor-core/src/renderer/golden.rs",
+      "crates/editor-core/src/renderer/golden/rich_text.rs",
+      "crates/editor-core/src/store/channel_style_packs/apply.rs",
+      "crates/editor-core/src/store/channel_style_packs/tests.rs",
+      "crates/editor-core/src/timeline.rs",
+      "crates/editor-core/src/timeline/animation_presets.rs",
+      "crates/editor-core/tests/animation_edit_semantics.rs",
+      "crates/editor-core/tests/animation_lifecycle_regressions.rs",
+      "crates/editor-core/tests/animation_presets.rs",
+      "crates/editor-core/tests/audio_bus_dsp.rs",
+      "crates/editor-core/tests/audio_bus_ducking.rs",
+      "crates/editor-core/tests/audio_events.rs",
+      "crates/editor-core/tests/blend_modes.rs",
+      "crates/editor-core/tests/component_evaluation.rs",
+      "crates/editor-core/tests/components.rs",
+      "crates/editor-core/tests/extended_visual_animation.rs",
+      "crates/editor-core/tests/font_resolution.rs",
+      "crates/editor-core/tests/group_compositing_models.rs",
+      "crates/editor-core/tests/groups.rs",
+      "crates/editor-core/tests/markers.rs",
+      "crates/editor-core/tests/mask_models.rs",
+      "crates/editor-core/tests/mask_rendering.rs",
+      "crates/editor-core/tests/master_normalization.rs",
+      "crates/editor-core/tests/motion_blur_sampling.rs",
+      "crates/editor-core/tests/narration_profiles.rs",
+      "crates/editor-core/tests/procedural_grids.rs",
+      "crates/editor-core/tests/repeaters.rs",
+      "crates/editor-core/tests/rich_text_documents.rs",
+      "crates/editor-core/tests/shape_items.rs",
+      "crates/editor-core/tests/solid_graphic_color_slots.rs",
+      "crates/editor-core/tests/sound_events.rs",
+      "crates/editor-core/tests/speech_alignment.rs",
+      "crates/editor-core/tests/stacking.rs",
+      "crates/editor-core/tests/support/advanced_text_layout.rs",
+      "crates/editor-core/tests/support/historical_animation_seed.rs",
+      "crates/editor-core/tests/support/slot_migration.rs",
+      "crates/editor-core/tests/support/styled_text.rs",
+      "crates/editor-core/tests/svg_ingestion.rs",
+      "crates/editor-core/tests/template_slots.rs",
+      "crates/editor-core/tests/track_mattes.rs",
+      "crates/editor-core/tests/transform2d.rs",
+      "docs/examples/motion-graphics-release-v1.json",
+      "apps/agent-bridge/src/narration-blocks/lifecycle.ts",
+      "apps/agent-bridge/tests/fixtures/narration-cli-process.ts",
+      "apps/agent-bridge/tests/schemas.test.ts",
+      "docs/agent-bridge.md",
+      "apps/agent-bridge/tests/pack-clock-migration-workflow.ts",
+      "apps/agent-bridge/tests/channel-packs-workflow.ts",
+      "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts",
+      "crates/editor-core/tests/audio_buses.rs",
+      "crates/editor-core/tests/inherited_animation_timing.rs"
+    ]
+  },
+  "wire": {
+    "planInput": {
+      "sourceText": "A. B.",
+      "profileId": "11111111-1111-4111-8111-111111111119",
+      "expectedVersion": 1,
+      "maxTextCharacters": 4096,
+      "boundaries": [
+        3,
+        5
+      ]
+    },
+    "plan": {
+      "id": "11111111-1111-4111-8111-111111111110",
+      "sourceText": "A. B.",
+      "maxTextCharacters": 4096,
+      "blocks": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "startScalar": 0,
+          "endScalar": 3,
+          "paragraph": 0,
+          "displayText": "A. ",
+          "request": {
+            "text": "A.",
+            "language": "en-US",
+            "voiceId": "contract_voice",
+            "speed": 1,
+            "textOptions": {
+              "normalization": "basic",
+              "chunking": "sentence",
+              "sentencePauseMs": 120,
+              "pronunciations": []
+            },
+            "narrationProfile": {
+              "id": "11111111-1111-4111-8111-111111111119",
+              "name": "Pinned fixture",
+              "version": 1
+            }
+          }
+        },
+        {
+          "id": "11111111-1111-4111-8111-111111111112",
+          "startScalar": 3,
+          "endScalar": 5,
+          "paragraph": 0,
+          "displayText": "B.",
+          "request": {
+            "text": "B.",
+            "language": "en-US",
+            "voiceId": "contract_voice",
+            "speed": 1,
+            "textOptions": {
+              "normalization": "basic",
+              "chunking": "sentence",
+              "sentencePauseMs": 120,
+              "pronunciations": []
+            },
+            "narrationProfile": {
+              "id": "11111111-1111-4111-8111-111111111119",
+              "name": "Pinned fixture",
+              "version": 1
+            }
+          }
+        }
+      ]
+    },
+    "preparedBlock": {
+      "block": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "startScalar": 0,
+        "endScalar": 3,
+        "paragraph": 0,
+        "displayText": "A. ",
+        "request": {
+          "text": "A.",
+          "language": "en-US",
+          "voiceId": "contract_voice",
+          "speed": 1,
+          "textOptions": {
+            "normalization": "basic",
+            "chunking": "sentence",
+            "sentencePauseMs": 120,
+            "pronunciations": []
+          },
+          "narrationProfile": {
+            "id": "11111111-1111-4111-8111-111111111119",
+            "name": "Pinned fixture",
+            "version": 1
+          }
+        }
+      },
+      "spokenSegments": [
+        "A."
+      ],
+      "spokenText": "A."
+    },
+    "manifest": {
+      "id": "11111111-1111-4111-8111-111111111110",
+      "sourceText": "A. B.",
+      "maxTextCharacters": 4096,
+      "blocks": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "startScalar": 0,
+          "endScalar": 3,
+          "paragraph": 0,
+          "displayText": "A. ",
+          "request": {
+            "text": "A.",
+            "language": "en-US",
+            "voiceId": "contract_voice",
+            "speed": 1,
+            "textOptions": {
+              "normalization": "basic",
+              "chunking": "sentence",
+              "sentencePauseMs": 120,
+              "pronunciations": []
+            },
+            "narrationProfile": {
+              "id": "11111111-1111-4111-8111-111111111119",
+              "name": "Pinned fixture",
+              "version": 1
+            }
+          },
+          "spokenSegments": [
+            "A."
+          ],
+          "spokenText": "A.",
+          "binding": {
+            "assetId": "asset-1",
+            "itemId": "item-1",
+            "trackId": "audio-track",
+            "startMs": 100,
+            "durationMs": 400,
+            "sourceInMs": 0,
+            "captionRefs": [],
+            "cueRefs": []
+          }
+        },
+        {
+          "id": "11111111-1111-4111-8111-111111111112",
+          "startScalar": 3,
+          "endScalar": 5,
+          "paragraph": 0,
+          "displayText": "B.",
+          "request": {
+            "text": "B.",
+            "language": "en-US",
+            "voiceId": "contract_voice",
+            "speed": 1,
+            "textOptions": {
+              "normalization": "basic",
+              "chunking": "sentence",
+              "sentencePauseMs": 120,
+              "pronunciations": []
+            },
+            "narrationProfile": {
+              "id": "11111111-1111-4111-8111-111111111119",
+              "name": "Pinned fixture",
+              "version": 1
+            }
+          },
+          "spokenSegments": [
+            "B."
+          ],
+          "spokenText": "B.",
+          "binding": {
+            "assetId": "asset-2",
+            "itemId": "item-2",
+            "trackId": "audio-track",
+            "startMs": 500,
+            "durationMs": 700,
+            "sourceInMs": 0,
+            "captionRefs": [],
+            "cueRefs": []
+          }
+        }
+      ],
+      "markerPolicy": {
+        "type": "none"
+      }
+    },
+    "commitInput": {
+      "projectId": "fixture-project",
+      "expectedRevision": 0,
+      "trackId": "audio-track",
+      "startMs": 100,
+      "plan": {
+        "id": "11111111-1111-4111-8111-111111111110",
+        "sourceText": "A. B.",
+        "maxTextCharacters": 4096,
+        "blocks": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "startScalar": 0,
+            "endScalar": 3,
+            "paragraph": 0,
+            "displayText": "A. ",
+            "request": {
+              "text": "A.",
+              "language": "en-US",
+              "voiceId": "contract_voice",
+              "speed": 1,
+              "textOptions": {
+                "normalization": "basic",
+                "chunking": "sentence",
+                "sentencePauseMs": 120,
+                "pronunciations": []
+              },
+              "narrationProfile": {
+                "id": "11111111-1111-4111-8111-111111111119",
+                "name": "Pinned fixture",
+                "version": 1
+              }
+            }
+          },
+          {
+            "id": "11111111-1111-4111-8111-111111111112",
+            "startScalar": 3,
+            "endScalar": 5,
+            "paragraph": 0,
+            "displayText": "B.",
+            "request": {
+              "text": "B.",
+              "language": "en-US",
+              "voiceId": "contract_voice",
+              "speed": 1,
+              "textOptions": {
+                "normalization": "basic",
+                "chunking": "sentence",
+                "sentencePauseMs": 120,
+                "pronunciations": []
+              },
+              "narrationProfile": {
+                "id": "11111111-1111-4111-8111-111111111119",
+                "name": "Pinned fixture",
+                "version": 1
+              }
+            }
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "prepared": {
+            "block": {
+              "id": "11111111-1111-4111-8111-111111111111",
+              "startScalar": 0,
+              "endScalar": 3,
+              "paragraph": 0,
+              "displayText": "A. ",
+              "request": {
+                "text": "A.",
+                "language": "en-US",
+                "voiceId": "contract_voice",
+                "speed": 1,
+                "textOptions": {
+                  "normalization": "basic",
+                  "chunking": "sentence",
+                  "sentencePauseMs": 120,
+                  "pronunciations": []
+                },
+                "narrationProfile": {
+                  "id": "11111111-1111-4111-8111-111111111119",
+                  "name": "Pinned fixture",
+                  "version": 1
+                }
+              }
+            },
+            "spokenSegments": [
+              "A."
+            ],
+            "spokenText": "A."
+          },
+          "path": "/owned/block-1.wav",
+          "durationMs": 400,
+          "origin": {
+            "type": "speech_synthesis",
+            "generation": {
+              "request": {
+                "text": "A.",
+                "language": "en-US",
+                "voiceId": "contract_voice",
+                "speed": 1,
+                "textOptions": {
+                  "normalization": "basic",
+                  "chunking": "sentence",
+                  "sentencePauseMs": 120,
+                  "pronunciations": []
+                },
+                "narrationProfile": {
+                  "id": "11111111-1111-4111-8111-111111111119",
+                  "name": "Pinned fixture",
+                  "version": 1
+                }
+              },
+              "providerId": "fixture-provider",
+              "modelId": "fixture-model",
+              "modelVersion": null,
+              "sampleRateHz": 24000,
+              "generatedAtMs": 1
+            }
+          },
+          "probe": {
+            "durationMs": 400,
+            "hasAudio": true,
+            "hasVideo": false,
+            "formatName": null,
+            "videoCodec": null,
+            "videoWidth": null,
+            "videoHeight": null,
+            "audioCodec": null,
+            "audioChannels": null,
+            "audioSampleRateHz": 24000
+          }
+        },
+        {
+          "prepared": {
+            "block": {
+              "id": "11111111-1111-4111-8111-111111111112",
+              "startScalar": 3,
+              "endScalar": 5,
+              "paragraph": 0,
+              "displayText": "B.",
+              "request": {
+                "text": "B.",
+                "language": "en-US",
+                "voiceId": "contract_voice",
+                "speed": 1,
+                "textOptions": {
+                  "normalization": "basic",
+                  "chunking": "sentence",
+                  "sentencePauseMs": 120,
+                  "pronunciations": []
+                },
+                "narrationProfile": {
+                  "id": "11111111-1111-4111-8111-111111111119",
+                  "name": "Pinned fixture",
+                  "version": 1
+                }
+              }
+            },
+            "spokenSegments": [
+              "B."
+            ],
+            "spokenText": "B."
+          },
+          "path": "/owned/block-2.wav",
+          "durationMs": 700,
+          "origin": {
+            "type": "speech_synthesis",
+            "generation": {
+              "request": {
+                "text": "B.",
+                "language": "en-US",
+                "voiceId": "contract_voice",
+                "speed": 1,
+                "textOptions": {
+                  "normalization": "basic",
+                  "chunking": "sentence",
+                  "sentencePauseMs": 120,
+                  "pronunciations": []
+                },
+                "narrationProfile": {
+                  "id": "11111111-1111-4111-8111-111111111119",
+                  "name": "Pinned fixture",
+                  "version": 1
+                }
+              },
+              "providerId": "fixture-provider",
+              "modelId": "fixture-model",
+              "modelVersion": null,
+              "sampleRateHz": 24000,
+              "generatedAtMs": 1
+            }
+          },
+          "probe": {
+            "durationMs": 700,
+            "hasAudio": true,
+            "hasVideo": false,
+            "formatName": null,
+            "videoCodec": null,
+            "videoWidth": null,
+            "videoHeight": null,
+            "audioCodec": null,
+            "audioChannels": null,
+            "audioSampleRateHz": 24000
+          }
+        }
+      ],
+      "markerPolicy": {
+        "type": "none"
+      }
+    }
+  },
+  "wireInvalidCases": [
+    {
+      "target": "planInput",
+      "path": [
+        "boundaries"
+      ],
+      "value": null
+    },
+    {
+      "target": "planInput",
+      "path": [
+        "extra"
+      ],
+      "value": true
+    },
+    {
+      "target": "plan",
+      "path": [
+        "blocks",
+        0,
+        "extra"
+      ],
+      "value": true
+    },
+    {
+      "target": "preparedBlock",
+      "path": [
+        "spokenText"
+      ],
+      "value": null
+    },
+    {
+      "target": "manifest",
+      "path": [
+        "markerPolicy"
+      ],
+      "value": null
+    },
+    {
+      "target": "manifest",
+      "path": [
+        "caption"
+      ],
+      "value": null
+    },
+    {
+      "target": "manifest",
+      "path": [
+        "blocks",
+        0,
+        "binding",
+        "extra"
+      ],
+      "value": true
+    },
+    {
+      "target": "commitInput",
+      "path": [
+        "blocks",
+        0,
+        "origin",
+        "generation",
+        "request",
+        "extra"
+      ],
+      "value": true
+    },
+    {
+      "target": "commitInput",
+      "path": [
+        "extra"
+      ],
+      "value": true
+    }
+  ]
+}

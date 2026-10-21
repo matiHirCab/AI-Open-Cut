@@ -780,7 +780,7 @@ fn validate_artwork_derivations(project: &Project, context: &str) -> Result<(), 
         };
         let source = by_id.get(d.source_asset_id.as_str()).ok_or_else(fail)?;
         let radius = d.parameters.outline.radius;
-        if project.schema_version < 47
+        if project.schema_version < 48
             || d.version != 1
             || d.parameters.validate().is_err()
             || asset.media_type != MediaType::Image
@@ -969,6 +969,7 @@ mod tests {
 
     fn project_with_asset() -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),

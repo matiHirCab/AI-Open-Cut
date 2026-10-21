@@ -115,6 +115,12 @@ fn canonical_project() -> Project {
 }
 fn legacy(mut value: Value, version: u32) -> Value {
     value["schemaVersion"] = json!(version);
+    if value["schemaVersion"]
+        .as_u64()
+        .is_some_and(|version| version < 47)
+    {
+        value.as_object_mut().unwrap().remove("narrationManifests");
+    }
     value.as_object_mut().unwrap().remove("soundDefinitions");
     if version < 39 {
         value.as_object_mut().unwrap().remove("audioBuses");

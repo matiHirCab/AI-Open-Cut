@@ -1,6 +1,7 @@
 import { deepStrictEqual } from "node:assert/strict";
 import contract from "../../../../contracts/short-candidate-planning-cli-v1.json";
-import { restoreArtworkRaw } from "./artwork-projection";
+import { restoreArtworkIntegrationRaw } from "./artwork-integration-projection";
+import { restoreNarrationBlocksRaw } from "./narration-blocks-projection";
 
 export const assertShortPlanningOwnership = (source: unknown): void => {
   if (
@@ -42,8 +43,15 @@ export const removeShortPlanningOwnership = <T>(source: T, copy = true): T => {
   return result;
 };
 
-export const restoreShortPlanningOwnershipRaw = (source: string): string => {
-  const input = restoreArtworkRaw(source);
+export const restoreShortPlanningOwnershipRaw = (input: string): string => {
+  const withoutArtwork = restoreArtworkIntegrationRaw(input);
+  if (withoutArtwork !== input) {
+    return restoreShortPlanningOwnershipRaw(withoutArtwork);
+  }
+  const withoutBlocks = restoreNarrationBlocksRaw(input);
+  if (withoutBlocks !== input) {
+    return restoreShortPlanningOwnershipRaw(withoutBlocks);
+  }
   const value: unknown = JSON.parse(input);
   const projected = removeShortPlanningOwnership(value);
   if (JSON.stringify(value) === JSON.stringify(projected)) {

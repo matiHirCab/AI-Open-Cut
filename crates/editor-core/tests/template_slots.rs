@@ -341,6 +341,7 @@ fn aggregate_slot_and_text_limits_are_inclusive() {
         let mut state = original.clone();
         state["components"] = definitions;
         state["schemaVersion"] = json!(18);
+        state.as_object_mut().unwrap().remove("narrationManifests");
         state.as_object_mut().unwrap().remove("audioBuses");
         state.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut state);
@@ -936,6 +937,7 @@ fn schema11_nested_history_migrates_and_schema12_fields_are_required() {
     let original = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     let mut old = original.clone();
     old["schemaVersion"] = json!(11);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut old);

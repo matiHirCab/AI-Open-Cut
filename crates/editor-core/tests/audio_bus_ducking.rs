@@ -142,6 +142,12 @@ fn schema43_adopts_all42_sources_and_retained_history_without_inventing_ducking(
     for version in 1..=42 {
         let mut source = original.clone();
         source["schemaVersion"] = json!(version);
+        if source["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            source.as_object_mut().unwrap().remove("narrationManifests");
+        }
         if version < 40 {
             source.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -211,10 +217,18 @@ fn premature_null_malformed_retained_and_future_ducking_fail_without_any_rewrite
         match case {
             "premature" => {
                 current["schemaVersion"] = json!(42);
+                current
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 current["audioBuses"][1]["ducking"] = catalog()["identity"].clone();
             }
             "premature_null" => {
                 current["schemaVersion"] = json!(42);
+                current
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 current["audioBuses"][1]["ducking"] = Value::Null;
             }
             "null" => current["audioBuses"][1]["ducking"] = Value::Null,
@@ -258,6 +272,7 @@ fn batch_alias_and_failed_legacy_draft_edits_preserve_every_source_byte() {
     let dir = root.path().join("projects").join(&id);
     let mut source = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     source["schemaVersion"] = json!(42);
+    source.as_object_mut().unwrap().remove("narrationManifests");
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec_pretty(&source).unwrap(),
@@ -348,6 +363,7 @@ fn schema42_existing_dsp_and_role_settings_migrate_byte_semantics_in_every_snaps
     let dir = root.path().join("projects").join(&id);
     let mut source = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     source["schemaVersion"] = json!(42);
+    source.as_object_mut().unwrap().remove("narrationManifests");
     source["audioBuses"][1]["dsp"] = json!({"gainDb":-6.0,"pan":0.5,"eq":[{"frequencyHz":440.0,"q":1.0,"gainDb":6.0}],"compressor":null});
     source["tracks"][0]["audioRole"] = json!("music");
     source["tracks"][0]["ducking"] =
@@ -365,6 +381,11 @@ fn schema42_existing_dsp_and_role_settings_migrate_byte_semantics_in_every_snaps
     .unwrap();
     let mut expected = source.clone();
     expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+    expected
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     assert_eq!(
         serde_json::to_value(core.get_project(&id).unwrap()).unwrap(),
         expected

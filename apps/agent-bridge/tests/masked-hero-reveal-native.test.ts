@@ -794,6 +794,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         unknown
       >;
       legacy.schemaVersion = 38;
+      Reflect.deleteProperty(legacy, "narrationManifests");
       Reflect.deleteProperty(legacy, "audioBuses");
       Reflect.deleteProperty(legacy, "soundDefinitions");
       for (const track of legacy.tracks as Record<string, unknown>[]) {
@@ -812,6 +813,7 @@ fn main(){let args:Vec<_>=std::env::args_os().skip(1).collect();for argument in 
         unknown
       >;
       oldFields.schemaVersion = 38;
+      Reflect.deleteProperty(oldFields, "narrationManifests");
       Reflect.deleteProperty(oldFields, "audioBuses");
       Reflect.deleteProperty(oldFields, "soundDefinitions");
       expect(oldFields).toEqual(legacy);

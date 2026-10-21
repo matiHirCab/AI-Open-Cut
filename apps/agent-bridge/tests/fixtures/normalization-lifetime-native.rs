@@ -73,6 +73,17 @@ fn hang() -> ! {
     }
 }
 
+fn publish_pids(root: &Path, phase: &str, backend: u32, descendant: u32) -> io::Result<()> {
+    let destination = root.join(format!(".normalization-test-{phase}.pid"));
+    let stage = root.join(format!(".normalization-test-{phase}.pid.pending"));
+    // fs::write closes the stage before rename makes readiness observable.
+    fs::write(
+        &stage,
+        format!("{{\"backend\":{backend},\"descendant\":{descendant}}}"),
+    )?;
+    fs::rename(stage, destination)
+}
+
 fn run() -> io::Result<()> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args == ["--fixture-descendant"] {
@@ -89,14 +100,18 @@ fn run() -> io::Result<()> {
         return Ok(());
     }
     if args.iter().any(|arg| arg == "-filters") {
-        println!(" ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... aformat ... aresample ... atrim ... asetpts ... loudnorm ... volume ... afade ... atempo ... adelay ... anullsrc ... color ... nullsink ... ebur128 ... ametadata ... ");
+        println!(
+            " ... overlay ... drawtext ... amix ... remap ... blend ... nullsrc ... split ... geq ... pad ... crop ... format ... aformat ... aresample ... atrim ... asetpts ... loudnorm ... volume ... afade ... atempo ... adelay ... anullsrc ... color ... nullsink ... ebur128 ... ametadata ... "
+        );
         return Ok(());
     }
     if probe {
         if value(&args, "-i").is_none() && args.is_empty() {
             return Err(io::ErrorKind::InvalidInput.into());
         }
-        println!("{{\"format\":{{\"duration\":\"0.100\",\"format_name\":\"fixture\"}},\"streams\":[{{\"codec_name\":\"rawvideo\",\"codec_type\":\"video\",\"height\":1,\"width\":1}},{{\"channels\":1,\"codec_name\":\"pcm_s16le\",\"codec_type\":\"audio\",\"sample_rate\":\"24000\"}}]}}");
+        println!(
+            "{{\"format\":{{\"duration\":\"0.100\",\"format_name\":\"fixture\"}},\"streams\":[{{\"codec_name\":\"rawvideo\",\"codec_type\":\"video\",\"height\":1,\"width\":1}},{{\"channels\":1,\"codec_name\":\"pcm_s16le\",\"codec_type\":\"audio\",\"sample_rate\":\"24000\"}}]}}"
+        );
         return Ok(());
     }
     let scripted = value(&args, "-filter_complex_script");
@@ -140,14 +155,7 @@ fn run() -> io::Result<()> {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()?;
-            fs::write(
-                root.join(format!(".normalization-test-{selected}.pid")),
-                format!(
-                    "{{\"backend\":{},\"descendant\":{}}}",
-                    std::process::id(),
-                    child.id()
-                ),
-            )?;
+            publish_pids(root, selected, std::process::id(), child.id())?;
             hang();
         }
     }
@@ -212,7 +220,9 @@ fn run() -> io::Result<()> {
         } else {
             "0.00"
         };
-        eprintln!("{{\"input_i\":\"-18.00\",\"input_lra\":\"0.00\",\"input_thresh\":\"-28.00\",\"input_tp\":\"{peak}\",\"target_offset\":\"{offset}\"}}");
+        eprintln!(
+            "{{\"input_i\":\"-18.00\",\"input_lra\":\"0.00\",\"input_thresh\":\"-28.00\",\"input_tp\":\"{peak}\",\"target_offset\":\"{offset}\"}}"
+        );
     } else {
         return Err(io::ErrorKind::InvalidInput.into());
     }
@@ -223,5 +233,82 @@ fn main() {
     if run().is_err() {
         eprintln!("private normalization fixture refused request");
         std::process::exit(2);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        path::PathBuf,
+        sync::atomic::{AtomicU64, Ordering},
+    };
+
+    static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+    struct Root(PathBuf);
+
+    impl Root {
+        fn new() -> Self {
+            let root = env::temp_dir().join(format!(
+                "normalization-pid-publication-{}-{}",
+                std::process::id(),
+                NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir(&root).expect("create isolated publication root");
+            Self(root)
+        }
+    }
+
+    impl Drop for Root {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).expect("remove isolated publication root");
+        }
+    }
+
+    #[test]
+    fn publishes_complete_closed_metadata_without_a_remaining_stage() {
+        let root = Root::new();
+        publish_pids(&root.0, "capture", 123, 456).expect("publish complete PIDs");
+        assert_eq!(
+            fs::read_to_string(root.0.join(".normalization-test-capture.pid")).unwrap(),
+            "{\"backend\":123,\"descendant\":456}"
+        );
+        assert!(
+            !root
+                .0
+                .join(".normalization-test-capture.pid.pending")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn staging_failure_preserves_an_existing_final_record() {
+        let root = Root::new();
+        let destination = root.0.join(".normalization-test-capture.pid");
+        fs::write(&destination, "unchanged final record").unwrap();
+        fs::create_dir(root.0.join(".normalization-test-capture.pid.pending")).unwrap();
+        assert!(publish_pids(&root.0, "capture", 123, 456).is_err());
+        assert_eq!(
+            fs::read_to_string(destination).unwrap(),
+            "unchanged final record"
+        );
+    }
+
+    #[test]
+    fn rename_failure_never_exposes_the_staged_record_as_readiness() {
+        let root = Root::new();
+        let destination = root.0.join(".normalization-test-capture.pid");
+        fs::create_dir(&destination).unwrap();
+        fs::write(destination.join("unrelated"), "preserved").unwrap();
+        assert!(publish_pids(&root.0, "capture", 123, 456).is_err());
+        assert_eq!(
+            fs::read_to_string(destination.join("unrelated")).unwrap(),
+            "preserved"
+        );
+        assert_eq!(
+            fs::read_to_string(root.0.join(".normalization-test-capture.pid.pending")).unwrap(),
+            "{\"backend\":123,\"descendant\":456}"
+        );
     }
 }

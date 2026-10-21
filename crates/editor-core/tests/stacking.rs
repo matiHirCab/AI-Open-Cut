@@ -328,6 +328,7 @@ fn schema_nine_requires_explicit_valid_order_and_migrates_mixed_history() {
     }
     let mut old = original.clone();
     old["schemaVersion"] = json!(8);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     old.as_object_mut().unwrap().remove("audioBuses");
     old.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut old);
@@ -337,6 +338,7 @@ fn schema_nine_requires_explicit_valid_order_and_migrates_mixed_history() {
     }
     let mut oldest = old.clone();
     oldest["schemaVersion"] = json!(1);
+    oldest.as_object_mut().unwrap().remove("narrationManifests");
     oldest.as_object_mut().unwrap().remove("audioBuses");
     oldest.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut oldest);

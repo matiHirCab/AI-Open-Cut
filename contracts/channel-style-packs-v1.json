@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "componentSchemaVersion": 46,
+  "limits": {
+    "packBytes": 8388608,
+    "libraryBytes": 67108864,
+    "packs": 16,
+    "nameScalars": 80,
+    "recipes": 16,
+    "items": 1024,
+    "markers": 32,
+    "images": 32,
+    "fonts": 32,
+    "placements": 32,
+    "editOperations": 100,
+    "jsonDepth": 64,
+    "cliBytes": 9437184,
+    "maxVersion": 9007199254740991
+  },
+  "operations": [
+    "channel_pack_list",
+    "channel_pack_get",
+    "channel_pack_capture",
+    "channel_pack_update",
+    "channel_pack_import",
+    "channel_pack_apply"
+  ],
+  "package": {
+    "formatVersion": 1,
+    "componentSchemaVersion": 46,
+    "name": "MontiPKM configurable original card",
+    "recipes": [
+      {
+        "key": "cp1_card",
+        "definition": {
+          "id": "cp1_card",
+          "name": "Original card",
+          "width": 320,
+          "height": 180,
+          "durationMs": 1000,
+          "tracks": [],
+          "slots": [],
+          "markers": []
+        }
+      }
+    ],
+    "fonts": [],
+    "images": [],
+    "captionRole": null,
+    "narrationProfile": null
+  },
+  "independentRenderOracle": {
+    "scene": "original geometric card with caption slot and generated original image; no supplied brand likeness",
+    "canvas": [
+      320,
+      180
+    ],
+    "durationMs": 1000,
+    "background": "#17324D",
+    "accent": "#E8B44A",
+    "reappliedAccent": "#42A59C",
+    "caption": "MontiPKM original",
+    "reappliedCaption": "Independent edit",
+    "sampleInterior": [
+      12,
+      12
+    ],
+    "fontSource": "existing licensed core font fixtures; hash frozen before render fixture assembly",
+    "sourceBytes": "project/history/drafts/fonts/assets/journal snapshots unchanged by capture",
+    "reopen": "exact same native raster and managed ownership after hiding pack library",
+    "fonts": [
+      {
+        "file": "DejaVuSans.ttf",
+        "sha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
+        "sizeBytes": 757076
+      },
+      {
+        "file": "DejaVuSans-Bold.ttf",
+        "sha256": "e6476c1b80502924294eed40894c5b18e06c181444ca953e5334262df9c27724",
+        "sizeBytes": 705684
+      },
+      {
+        "file": "DejaVuSans-Oblique.ttf",
+        "sha256": "4af75fa16ee6d3ad43e1ecec41862c24954af26a55c6bb1ebb27bd486a50f5f4",
+        "sizeBytes": 635416
+      },
+      {
+        "file": "DejaVuSans-BoldOblique.ttf",
+        "sha256": "eb436dca0c2594b73d8b603b892e374fdfd8d885d25ffb4f18df4c4c0b49e50f",
+        "sizeBytes": 643292
+      }
+    ],
+    "image": {
+      "width": 16,
+      "height": 16,
+      "rgb": [
+        30,
+        180,
+        210
+      ],
+      "sha256": "d3fe8d3a253315d6de70dbb259f2fbcffea1e10f7f08e6cc8a4f846ee4702435",
+      "sizeBytes": 79,
+      "pngBase64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mOQ23KJJMQwqmFUw/DVAACUrqQQBwgVbQAAAABJRU5ErkJggg=="
+    },
+    "pngConversionTolerance": 3,
+    "colorReference": "Independent literal FFmpeg color sources from unchanged authored RGB, generated before project creation; bound against both source RGB and literal decode"
+  },
+  "negativeControls": [
+    "unknown package script/path/fontPath",
+    "repeated object keys including slotValues __proto__ and ordinary names",
+    "future formats/components",
+    "invalid/missing font hashes",
+    "unsupported audio/global dependencies",
+    "missing/mismatched/corrupt explicit image bindings",
+    "missing/stale profile",
+    "revision conflict",
+    "locked final rebound font",
+    "incompatible retained slot override",
+    "before/after journal publication failures",
+    "oversized input/output",
+    "missing/skip/comment/masked required consumer"
+  ],
+  "ownership": {
+    "canonical": "contracts/channel-style-packs-v1.json",
+    "consumers": [
+      "crates/editor-core/src/model/channel_style_packs.rs",
+      "crates/editor-core/src/model.rs",
+      "crates/editor-core/src/store/channel_style_packs/mod.rs",
+      "crates/editor-core/src/store/channel_style_packs/portable.rs",
+      "crates/editor-core/src/store/channel_style_packs/capture.rs",
+      "crates/editor-core/src/store/channel_style_packs/apply.rs",
+      "crates/editor-core/src/store/channel_style_packs/apply/remap.rs",
+      "crates/editor-core/src/store/channel_style_packs/tests.rs",
+      "crates/editor-core/src/store.rs",
+      "crates/editor-core/src/timeline.rs",
+      "crates/editor-core/tests/channel_style_packs.rs",
+      "apps/headless/src/main.rs",
+      "apps/headless/tests/protocol.rs",
+      "apps/agent-bridge/src/headless-contract.ts",
+      "apps/agent-bridge/src/channel-packs/contract.ts",
+      "apps/agent-bridge/src/channel-packs/cli.ts",
+      "apps/agent-bridge/src/channel-packs-cli.ts",
+      "apps/agent-bridge/tests/channel-packs.test.ts",
+      "apps/agent-bridge/tests/channel-packs-contract.ts",
+      "apps/agent-bridge/tests/channel-packs-workflow.ts",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/tests/short-candidates-contract.ts",
+      "apps/agent-bridge/tests/fixtures/channel-packs-projection.ts",
+      "apps/agent-bridge/tests/fixtures/channel-packs-predecessor-ownership.raw",
+      "apps/agent-bridge/tests/fixtures/channel-packs-predecessor-headless.raw",
+      "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+      "apps/agent-bridge/package.json",
+      "scripts/validate-ci-gates.ts",
+      "scripts/validate-ci-gates.test.ts",
+      "docs/channel-style-packs.md",
+      "docs/agent-bridge.md",
+      "docs/adr/0003-editor-core-module-boundaries.md",
+      ".github/workflows/bun-ci.yml",
+      "scripts/channel-pack-workflow-projection.ts",
+      "scripts/motion-release-policy.test.ts",
+      "crates/editor-core/tests/fixtures/fonts/OpenCutBoundaryTest.ttf",
+      "crates/editor-core/tests/fixtures/fonts/README.md"
+    ]
+  },
+  "predecessorOwnershipSha256": "c18848381e0125a1fd59603314882584af3679b0831f8fb8cdfdbd4c8d8226d5",
+  "predecessorHeadlessSha256": "0a6e740abb64995d581d33bec99ce30fb6cd981fd357fe80374e65b39ba25bdb",
+  "definitionDigest": "b4c9a1fe55d0e732ca9e49d0d1251ec61c898a9c1039952abbc0a41de9f2efb5",
+  "requests": [
+    {
+      "operation": "channel_pack_list"
+    },
+    {
+      "operation": "channel_pack_get",
+      "packId": "00000000-0000-4000-8000-000000000211"
+    },
+    {
+      "operation": "channel_pack_capture",
+      "capture": {
+        "projectId": "source_project",
+        "expectedRevision": 1,
+        "componentIds": [
+          "cp1_card"
+        ],
+        "name": "MontiPKM original",
+        "captionRole": null,
+        "narrationProfile": null
+      }
+    },
+    {
+      "operation": "channel_pack_update",
+      "packId": "00000000-0000-4000-8000-000000000211",
+      "expectedVersion": 1,
+      "capture": {
+        "projectId": "source_project",
+        "expectedRevision": 1,
+        "componentIds": [
+          "cp1_card"
+        ],
+        "name": "MontiPKM original",
+        "captionRole": null,
+        "narrationProfile": null
+      }
+    },
+    {
+      "operation": "channel_pack_import",
+      "name": "Independent copy",
+      "packageJson": "{\"formatVersion\":1,\"componentSchemaVersion\":46,\"name\":\"MontiPKM configurable original card\",\"recipes\":[{\"key\":\"cp1_card\",\"definition\":{\"id\":\"cp1_card\",\"name\":\"Original card\",\"width\":320,\"height\":180,\"durationMs\":1000,\"tracks\":[],\"slots\":[],\"markers\":[]}}],\"fonts\":[],\"images\":[],\"captionRole\":null,\"narrationProfile\":null}"
+    },
+    {
+      "operation": "channel_pack_apply",
+      "projectId": "target_project",
+      "expectedRevision": 0,
+      "packId": "00000000-0000-4000-8000-000000000211",
+      "expectedVersion": 1,
+      "images": [],
+      "narration": {
+        "mode": "saved"
+      },
+      "application": {
+        "mode": "instantiate",
+        "placements": [
+          {
+            "recipeKey": "cp1_card",
+            "trackId": "overlay_track",
+            "startMs": 0,
+            "trimStartMs": 0,
+            "durationMs": 1000,
+            "timeScale": 1,
+            "staggerMs": 0,
+            "slotValues": {},
+            "transform": {
+              "opacity": 1,
+              "positionX": 0,
+              "positionY": 0,
+              "scale": 1
+            },
+            "transform2d": null,
+            "hidden": false,
+            "zIndex": 0,
+            "parent": null
+          }
+        ]
+      }
+    }
+  ],
+  "predecessorWorkflowSha256": "99578cf3bd44e1fc0a8ae3efa53af26c6a4d90d08f0615f26c80c4350edf9815",
+  "independentBoundaryFont": {
+    "sha256": "1dbf5fcce68a4b5edf499635a972ebcb45fe3c4f6292bd2c9594a26f57cbc8d7",
+    "sizeBytes": 4004,
+    "sourceSha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+    "authoringTool": "FontTools4.61.1",
+    "glyph": "A",
+    "family": "OpenCut Boundary Test",
+    "license": "crates/editor-core/tests/fixtures/fonts/LICENSE.txt"
+  }
+}

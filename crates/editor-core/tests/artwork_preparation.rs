@@ -271,6 +271,10 @@ fn schema46_current_and_history_migrate_idempotently_and_future_or_premature_are
     let mut current: Value =
         serde_json::from_slice(&fs::read(dir.join("project.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(46);
+    current
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     fs::write(
         dir.join("project.json"),
         serde_json::to_vec_pretty(&current).unwrap(),
@@ -280,13 +284,17 @@ fn schema46_current_and_history_migrate_idempotently_and_future_or_premature_are
         serde_json::from_slice(&fs::read(dir.join("history.json")).unwrap()).unwrap();
     for snapshot in history["undo"].as_array_mut().unwrap() {
         snapshot["schemaVersion"] = json!(46);
+        snapshot
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
     }
     fs::write(
         dir.join("history.json"),
         serde_json::to_vec_pretty(&history).unwrap(),
     )
     .unwrap();
-    assert_eq!(core.get_project(&id).unwrap().schema_version, 47);
+    assert_eq!(core.get_project(&id).unwrap().schema_version, 48);
     let first = fs::read(dir.join("project.json")).unwrap();
     let history_first = fs::read(dir.join("history.json")).unwrap();
     core.get_project(&id).unwrap();
@@ -297,7 +305,7 @@ fn schema46_current_and_history_migrate_idempotently_and_future_or_premature_are
             .unwrap()
             .contains("artworkDerivation")
     );
-    for (version, field) in [(48, false), (46, true)] {
+    for (version, field) in [(49, false), (47, true), (46, true)] {
         let mut raw: Value = serde_json::from_slice(&first).unwrap();
         raw["schemaVersion"] = json!(version);
         if field {
@@ -516,4 +524,87 @@ fn missing_legacy_dimension_facts_guide_reimport_without_claiming_damage_or_bloc
     assert!(error.message.contains("dimension facts mismatch"));
     assert!(!error.message.contains("missing"));
     assert_eq!(fs::read(file).unwrap(), before);
+}
+
+#[test]
+fn package46_refuses_selected_derivative_without_mutation_and_ignores_unrelated_derivatives() {
+    let (root, core, id, source, _) = setup();
+    let prepared = core.prepare_artwork(&id, 1, &source, parameters()).unwrap();
+    let derivative = core.commit_artwork(prepared.manifest).unwrap().changed_ids[0].clone();
+    let project = core.get_project(&id).unwrap();
+    let template = project
+        .tracks
+        .iter()
+        .find(|t| t.track_type == TrackType::Video)
+        .unwrap();
+    let mut revision = 2;
+    let mut components = Vec::new();
+    for asset_id in [&source, &derivative] {
+        let mut track = template.clone();
+        track.id = uuid::Uuid::new_v4().to_string();
+        track.items = vec![TimelineItem::Media(MediaItem {
+            audio_event: None,
+            id: uuid::Uuid::new_v4().to_string(),
+            asset_id: asset_id.clone(),
+            start_ms: 0,
+            duration_ms: 1000,
+            source_in_ms: 0,
+            visual_properties: VisualProperties::default(),
+            audio: AudioSettings::default(),
+            keyframes: vec![],
+        })];
+        let edited = core
+            .edit(
+                &id,
+                revision,
+                EditOperation::ComponentCreate {
+                    name: format!("Recipe {revision}"),
+                    width: 64,
+                    height: 64,
+                    duration_ms: 1000,
+                    tracks: vec![track],
+                    slots: Some(vec![]),
+                },
+            )
+            .unwrap();
+        components.push(edited.changed_ids[0].clone());
+        revision += 1;
+    }
+    let input = |component: &String, name: &str| ChannelCaptureInput {
+        project_id: id.clone(),
+        expected_revision: revision,
+        component_ids: vec![component.clone()],
+        name: name.into(),
+        caption_role: None,
+        narration_profile: None,
+    };
+    let dir = root.path().join("projects").join(&id);
+    let before_project = fs::read(dir.join("project.json")).unwrap();
+    let before_history = fs::read(dir.join("history.json")).unwrap();
+    let ordinary = core
+        .capture_channel_pack(input(&components[0], "Ordinary original"))
+        .unwrap();
+    assert_eq!(ordinary.pack.package.component_schema_version, 46);
+    assert_eq!(ordinary.pack.package.images.len(), 1);
+    assert_eq!(ordinary.pack.package.images[0].key, source);
+    let before_library = serde_json::to_value(core.list_channel_packs().unwrap()).unwrap();
+    assert_eq!(
+        core.capture_channel_pack(input(&components[1], "Unsupported derivative"))
+            .unwrap_err()
+            .code,
+        ErrorCode::ValidationFailed
+    );
+    assert_eq!(
+        serde_json::to_value(core.list_channel_packs().unwrap()).unwrap(),
+        before_library
+    );
+    assert_eq!(fs::read(dir.join("project.json")).unwrap(), before_project);
+    assert_eq!(fs::read(dir.join("history.json")).unwrap(), before_history);
+    for asset in &project.assets {
+        let bytes = fs::read(dir.join(&asset.project_relative_path)).unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&bytes)),
+            asset.content_hash.as_ref().unwrap().digest
+        );
+    }
 }

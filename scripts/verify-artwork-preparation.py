@@ -318,7 +318,7 @@ def verify(root, bun, headless, ffmpeg, ffprobe, hermetic=False):
     applied = cli({"operation": "apply", "directory": str(review), "approve": True})
     require(applied["result"]["revision"] == 2, "Apply did not create exactly one revision")
     state = core({"operation": "get_state", "projectId": project_id})["project"]
-    require(state["schemaVersion"] == 47, "Unexpected current schema")
+    require(state["schemaVersion"] == 48, "Unexpected current schema")
     require(len(state["assets"]) == 2, "Apply did not create exactly one new asset")
     require(all(not track["items"] for track in state["tracks"]), "Apply changed timeline placement")
     asset = next(a for a in state["assets"] if a["id"] == applied["result"]["changedIds"][0])

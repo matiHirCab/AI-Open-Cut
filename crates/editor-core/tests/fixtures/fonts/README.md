@@ -1,1 +1,3 @@
 DejaVu Sans and Serif 2.37, unmodified font fixtures from Ubuntu fonts-dejavu-core 2.37-8. See LICENSE.txt for redistribution terms. Used only by tests; no host font installation is required.
+
+`OpenCutBoundaryTest.ttf` is a test-only static outline subset of the above DejaVu Sans fixture (source SHA256 `ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280`), authored with FontTools4.61.1 for glyph A, renamed OpenCut Boundary Test. The same LICENSE.txt applies. Its SHA256 is `1dbf5fcce68a4b5edf499635a972ebcb45fe3c4f6292bd2c9594a26f57cbc8d7` (4004bytes). It permits actual32-face channel-pack boundary tests within the portable byte budget; production fonts and runtime dependencies are unchanged.

@@ -1,0 +1,351 @@
+{
+  "projectStatePath": [
+    "$defs",
+    "ProjectGetStateOutputPropertiesProjectProperties"
+  ],
+  "manifestArray": {
+    "items": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "binding": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetId": {
+                    "type": "string"
+                  },
+                  "captionRefs": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "durationMs": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "startMs": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["durationMs", "id", "startMs", "text"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "cueRefs": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "timeMs": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": ["id", "name", "timeMs"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "durationMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "itemId": {
+                    "type": "string"
+                  },
+                  "sourceInMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "startMs": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "trackId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assetId",
+                  "captionRefs",
+                  "cueRefs",
+                  "durationMs",
+                  "itemId",
+                  "sourceInMs",
+                  "startMs",
+                  "trackId"
+                ],
+                "type": "object"
+              },
+              "displayText": {
+                "type": "string"
+              },
+              "endScalar": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "id": {
+                "type": "string"
+              },
+              "paragraph": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request": {
+                "additionalProperties": false,
+                "properties": {
+                  "language": {
+                    "type": "string"
+                  },
+                  "narrationProfile": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": ["id", "name", "version"],
+                    "type": "object"
+                  },
+                  "speed": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "textOptions": {
+                    "additionalProperties": false,
+                    "default": {
+                      "chunking": "sentence",
+                      "normalization": "basic",
+                      "pronunciations": [],
+                      "sentencePauseMs": 120
+                    },
+                    "properties": {
+                      "chunking": {
+                        "enum": ["none", "sentence"],
+                        "type": "string"
+                      },
+                      "normalization": {
+                        "enum": ["none", "basic"],
+                        "type": "string"
+                      },
+                      "pronunciations": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "spoken": {
+                              "type": "string"
+                            },
+                            "term": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["spoken", "term"],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "sentencePauseMs": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "chunking",
+                      "normalization",
+                      "pronunciations",
+                      "sentencePauseMs"
+                    ],
+                    "type": "object"
+                  },
+                  "voiceId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "language",
+                  "narrationProfile",
+                  "speed",
+                  "text",
+                  "textOptions",
+                  "voiceId"
+                ],
+                "type": "object"
+              },
+              "spokenSegments": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "spokenText": {
+                "type": "string"
+              },
+              "startScalar": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "displayText",
+              "endScalar",
+              "id",
+              "paragraph",
+              "request",
+              "startScalar",
+              "binding",
+              "spokenSegments",
+              "spokenText"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "caption": {
+          "additionalProperties": false,
+          "properties": {
+            "granularity": {
+              "enum": ["sentence", "word"],
+              "type": "string"
+            },
+            "trackId": {
+              "type": "string"
+            }
+          },
+          "required": ["granularity", "trackId"],
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "markerPolicy": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "none",
+                  "type": "string"
+                }
+              },
+              "required": ["type"],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "sentence",
+                  "type": "string"
+                }
+              },
+              "required": ["type"],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "indices": {
+                  "items": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "const": "selected_word",
+                  "type": "string"
+                }
+              },
+              "required": ["indices", "type"],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "all_word",
+                  "type": "string"
+                }
+              },
+              "required": ["type"],
+              "type": "object"
+            }
+          ]
+        },
+        "maxTextCharacters": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sourceText": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "blocks",
+        "id",
+        "maxTextCharacters",
+        "sourceText",
+        "markerPolicy"
+      ],
+      "type": "object"
+    },
+    "maxItems": 32,
+    "type": "array"
+  },
+  "versionPaths": [
+    [
+      "toolDefinitions",
+      "editor_get_status",
+      "outputSchema",
+      "properties",
+      "projectSchemaVersion",
+      "const"
+    ],
+    [
+      "$defs",
+      "ProjectGetStateOutputPropertiesProjectProperties",
+      "schemaVersion",
+      "const"
+    ]
+  ],
+  "rawPropertyFragment": "\"narrationManifests\": {\n        \"items\": {\n          \"additionalProperties\": false,\n          \"properties\": {\n            \"blocks\": {\n              \"items\": {\n                \"additionalProperties\": false,\n                \"properties\": {\n                  \"binding\": {\n                    \"additionalProperties\": false,\n                    \"properties\": {\n                      \"assetId\": {\n                        \"type\": \"string\"\n                      },\n                      \"captionRefs\": {\n                        \"items\": {\n                          \"additionalProperties\": false,\n                          \"properties\": {\n                            \"durationMs\": {\n                              \"maximum\": 9007199254740991,\n                              \"minimum\": 0,\n                              \"type\": \"integer\"\n                            },\n                            \"id\": {\n                              \"type\": \"string\"\n                            },\n                            \"startMs\": {\n                              \"maximum\": 9007199254740991,\n                              \"minimum\": 0,\n                              \"type\": \"integer\"\n                            },\n                            \"text\": {\n                              \"type\": \"string\"\n                            }\n                          },\n                          \"required\": [\n                            \"durationMs\",\n                            \"id\",\n                            \"startMs\",\n                            \"text\"\n                          ],\n                          \"type\": \"object\"\n                        },\n                        \"type\": \"array\"\n                      },\n                      \"cueRefs\": {\n                        \"items\": {\n                          \"additionalProperties\": false,\n                          \"properties\": {\n                            \"id\": {\n                              \"type\": \"string\"\n                            },\n                            \"name\": {\n                              \"type\": \"string\"\n                            },\n                            \"timeMs\": {\n                              \"maximum\": 9007199254740991,\n                              \"minimum\": 0,\n                              \"type\": \"integer\"\n                            }\n                          },\n                          \"required\": [\n                            \"id\",\n                            \"name\",\n                            \"timeMs\"\n                          ],\n                          \"type\": \"object\"\n                        },\n                        \"type\": \"array\"\n                      },\n                      \"durationMs\": {\n                        \"maximum\": 9007199254740991,\n                        \"minimum\": 0,\n                        \"type\": \"integer\"\n                      },\n                      \"itemId\": {\n                        \"type\": \"string\"\n                      },\n                      \"sourceInMs\": {\n                        \"maximum\": 9007199254740991,\n                        \"minimum\": 0,\n                        \"type\": \"integer\"\n                      },\n                      \"startMs\": {\n                        \"maximum\": 9007199254740991,\n                        \"minimum\": 0,\n                        \"type\": \"integer\"\n                      },\n                      \"trackId\": {\n                        \"type\": \"string\"\n                      }\n                    },\n                    \"required\": [\n                      \"assetId\",\n                      \"captionRefs\",\n                      \"cueRefs\",\n                      \"durationMs\",\n                      \"itemId\",\n                      \"sourceInMs\",\n                      \"startMs\",\n                      \"trackId\"\n                    ],\n                    \"type\": \"object\"\n                  },\n                  \"displayText\": {\n                    \"type\": \"string\"\n                  },\n                  \"endScalar\": {\n                    \"maximum\": 9007199254740991,\n                    \"minimum\": 0,\n                    \"type\": \"integer\"\n                  },\n                  \"id\": {\n                    \"type\": \"string\"\n                  },\n                  \"paragraph\": {\n                    \"maximum\": 9007199254740991,\n                    \"minimum\": 0,\n                    \"type\": \"integer\"\n                  },\n                  \"request\": {\n                    \"additionalProperties\": false,\n                    \"properties\": {\n                      \"language\": {\n                        \"type\": \"string\"\n                      },\n                      \"narrationProfile\": {\n                        \"additionalProperties\": false,\n                        \"properties\": {\n                          \"id\": {\n                            \"type\": \"string\"\n                          },\n                          \"name\": {\n                            \"type\": \"string\"\n                          },\n                          \"version\": {\n                            \"exclusiveMinimum\": 0,\n                            \"maximum\": 9007199254740991,\n                            \"type\": \"integer\"\n                          }\n                        },\n                        \"required\": [\n                          \"id\",\n                          \"name\",\n                          \"version\"\n                        ],\n                        \"type\": \"object\"\n                      },\n                      \"speed\": {\n                        \"exclusiveMinimum\": 0,\n                        \"type\": \"number\"\n                      },\n                      \"text\": {\n                        \"type\": \"string\"\n                      },\n                      \"textOptions\": {\n                        \"additionalProperties\": false,\n                        \"default\": {\n                          \"chunking\": \"sentence\",\n                          \"normalization\": \"basic\",\n                          \"pronunciations\": [],\n                          \"sentencePauseMs\": 120\n                        },\n                        \"properties\": {\n                          \"chunking\": {\n                            \"enum\": [\n                              \"none\",\n                              \"sentence\"\n                            ],\n                            \"type\": \"string\"\n                          },\n                          \"normalization\": {\n                            \"enum\": [\n                              \"none\",\n                              \"basic\"\n                            ],\n                            \"type\": \"string\"\n                          },\n                          \"pronunciations\": {\n                            \"items\": {\n                              \"additionalProperties\": false,\n                              \"properties\": {\n                                \"spoken\": {\n                                  \"type\": \"string\"\n                                },\n                                \"term\": {\n                                  \"type\": \"string\"\n                                }\n                              },\n                              \"required\": [\n                                \"spoken\",\n                                \"term\"\n                              ],\n                              \"type\": \"object\"\n                            },\n                            \"type\": \"array\"\n                          },\n                          \"sentencePauseMs\": {\n                            \"maximum\": 9007199254740991,\n                            \"minimum\": 0,\n                            \"type\": \"integer\"\n                          }\n                        },\n                        \"required\": [\n                          \"chunking\",\n                          \"normalization\",\n                          \"pronunciations\",\n                          \"sentencePauseMs\"\n                        ],\n                        \"type\": \"object\"\n                      },\n                      \"voiceId\": {\n                        \"type\": \"string\"\n                      }\n                    },\n                    \"required\": [\n                      \"language\",\n                      \"narrationProfile\",\n                      \"speed\",\n                      \"text\",\n                      \"textOptions\",\n                      \"voiceId\"\n                    ],\n                    \"type\": \"object\"\n                  },\n                  \"spokenSegments\": {\n                    \"items\": {\n                      \"type\": \"string\"\n                    },\n                    \"type\": \"array\"\n                  },\n                  \"spokenText\": {\n                    \"type\": \"string\"\n                  },\n                  \"startScalar\": {\n                    \"maximum\": 9007199254740991,\n                    \"minimum\": 0,\n                    \"type\": \"integer\"\n                  }\n                },\n                \"required\": [\n                  \"displayText\",\n                  \"endScalar\",\n                  \"id\",\n                  \"paragraph\",\n                  \"request\",\n                  \"startScalar\",\n                  \"binding\",\n                  \"spokenSegments\",\n                  \"spokenText\"\n                ],\n                \"type\": \"object\"\n              },\n              \"type\": \"array\"\n            },\n            \"caption\": {\n              \"additionalProperties\": false,\n              \"properties\": {\n                \"granularity\": {\n                  \"enum\": [\n                    \"sentence\",\n                    \"word\"\n                  ],\n                  \"type\": \"string\"\n                },\n                \"trackId\": {\n                  \"type\": \"string\"\n                }\n              },\n              \"required\": [\n                \"granularity\",\n                \"trackId\"\n              ],\n              \"type\": \"object\"\n            },\n            \"id\": {\n              \"type\": \"string\"\n            },\n            \"markerPolicy\": {\n              \"oneOf\": [\n                {\n                  \"additionalProperties\": false,\n                  \"properties\": {\n                    \"type\": {\n                      \"const\": \"none\",\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"required\": [\n                    \"type\"\n                  ],\n                  \"type\": \"object\"\n                },\n                {\n                  \"additionalProperties\": false,\n                  \"properties\": {\n                    \"type\": {\n                      \"const\": \"sentence\",\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"required\": [\n                    \"type\"\n                  ],\n                  \"type\": \"object\"\n                },\n                {\n                  \"additionalProperties\": false,\n                  \"properties\": {\n                    \"indices\": {\n                      \"items\": {\n                        \"maximum\": 9007199254740991,\n                        \"minimum\": 0,\n                        \"type\": \"integer\"\n                      },\n                      \"type\": \"array\"\n                    },\n                    \"type\": {\n                      \"const\": \"selected_word\",\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"required\": [\n                    \"indices\",\n                    \"type\"\n                  ],\n                  \"type\": \"object\"\n                },\n                {\n                  \"additionalProperties\": false,\n                  \"properties\": {\n                    \"type\": {\n                      \"const\": \"all_word\",\n                      \"type\": \"string\"\n                    }\n                  },\n                  \"required\": [\n                    \"type\"\n                  ],\n                  \"type\": \"object\"\n                }\n              ]\n            },\n            \"maxTextCharacters\": {\n              \"maximum\": 9007199254740991,\n              \"minimum\": 0,\n              \"type\": \"integer\"\n            },\n            \"sourceText\": {\n              \"type\": \"string\"\n            }\n          },\n          \"required\": [\n            \"blocks\",\n            \"id\",\n            \"maxTextCharacters\",\n            \"sourceText\",\n            \"markerPolicy\"\n          ],\n          \"type\": \"object\"\n        },\n        \"maxItems\": 32,\n        \"type\": \"array\"\n      },\n      ",
+  "rawRequiredFragment": "\"narrationManifests\",\n        "
+}

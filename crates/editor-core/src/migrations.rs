@@ -24,6 +24,12 @@ pub(crate) fn migrate_project_documents(
 }
 
 fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
+    if project.schema_version < 47 && !project.narration_manifests.is_empty() {
+        return Err(CoreError::new(
+            ErrorCode::InvalidArgument,
+            "narration manifests require schema47",
+        ));
+    }
     project.validate_graphic_slot_schema()?;
     if project.schema_version <= PROJECT_SCHEMA_VERSION {
         project.validate_audio_bus_model()?;
@@ -31,10 +37,10 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
         project.validate_audio_event_model()?;
     }
     for asset in &project.assets {
-        if project.schema_version < 47 && asset.artwork_derivation.is_some() {
+        if project.schema_version < 48 && asset.artwork_derivation.is_some() {
             return Err(CoreError::new(
                 ErrorCode::InvalidArgument,
-                "artwork derivation requires schema 47",
+                "artwork derivation requires schema 48; development artwork schema47 is unsupported",
             ));
         }
         if project.schema_version < 38
@@ -407,7 +413,7 @@ fn migrate_project(project: &mut Project) -> Result<bool, CoreError> {
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
         }
-        9..=46 => {
+        9..=47 => {
             validate_source_component_transforms(project)?;
             project.schema_version = PROJECT_SCHEMA_VERSION;
             Ok(true)
@@ -461,6 +467,7 @@ mod tests {
 
     fn project(schema_version: u32) -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: if schema_version >= 39 {

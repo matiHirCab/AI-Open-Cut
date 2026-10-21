@@ -85,6 +85,7 @@ import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
 import { verifyArtworkContract } from "./artwork-contract";
+import { verifyChannelPackContract } from "./channel-packs-contract";
 import {
   alignAudioAnalysisRuntimeObjectOrder,
   removeAudioAnalysisMcpAdditions,
@@ -1090,13 +1091,21 @@ describe("canonical public contracts", () => {
   it("validates canonical status negotiation in TypeScript and Zod", () => {
     const operations = {
       analyze_audio: true,
+      channel_pack_apply: true,
+      channel_pack_capture: true,
+      channel_pack_get: true,
+      channel_pack_import: true,
+      channel_pack_list: true,
+      channel_pack_update: true,
       commit_artwork: true,
       commit_draft: true,
       commit_generated_asset: true,
+      commit_narration_blocks: true,
       commit_transcription: true,
       create_draft: true,
       create_project: true,
       delete_asset: true,
+      detach_narration_block: true,
       discard_draft: true,
       edit: true,
       edit_batch: true,
@@ -1106,6 +1115,7 @@ describe("canonical public contracts", () => {
       get_state: true,
       import_asset: true,
       list_projects: true,
+      narration_blocks_plan: true,
       narration_profile_create: true,
       narration_profile_get: true,
       narration_profile_list: true,
@@ -1349,6 +1359,10 @@ describe("canonical public contracts", () => {
   it(
     "governs the independent short-candidate CLI and exact ownership addition",
     verifyShortPlanningContract
+  );
+  it(
+    "governs channel packs and exact additive predecessors",
+    verifyChannelPackContract
   );
 
   it("keeps TypeScript checking in the standalone contract gate", () => {
