@@ -111,9 +111,9 @@ fn cp1_component46_survives_project47_and_readonly_capture_of_both_compatible_so
         )
         .unwrap();
     let source47 = core.get_project(&id).unwrap();
-    assert_eq!(source47.schema_version, 47);
+    assert_eq!(source47.schema_version, 48);
     let dir = core.paths().projects_root().join(&id);
-    for schema in [46, 47] {
+    for schema in [46, 47, 48] {
         let mut source = source47.clone();
         source.schema_version = schema;
         std::fs::write(
@@ -153,7 +153,7 @@ fn cp1_component46_survives_project47_and_readonly_capture_of_both_compatible_so
             .unwrap()
             .project_id;
         let target_state = core.get_project(&target).unwrap();
-        assert_eq!(target_state.schema_version, 47);
+        assert_eq!(target_state.schema_version, 48);
         let track = target_state
             .tracks
             .iter()
@@ -186,7 +186,7 @@ fn cp1_component46_survives_project47_and_readonly_capture_of_both_compatible_so
         })
         .unwrap();
         let applied = core.get_project(&target).unwrap();
-        assert_eq!(applied.schema_version, 47);
+        assert_eq!(applied.schema_version, 48);
         assert_eq!(applied.components.len(), 1);
         assert!(applied.narration_manifests.is_empty());
         assert_eq!(
@@ -204,7 +204,7 @@ fn cp1_component46_survives_project47_and_readonly_capture_of_both_compatible_so
         );
         assert_eq!(files(&dir), before);
     }
-    for schema in [45, 48] {
+    for schema in [45, 49] {
         let mut source = source47.clone();
         source.schema_version = schema;
         std::fs::write(

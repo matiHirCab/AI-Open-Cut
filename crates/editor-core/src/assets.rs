@@ -1,4 +1,5 @@
 //! Canonical asset ownership and integrity rules.
+pub(crate) mod artwork;
 pub(crate) mod fonts;
 
 use std::{
@@ -29,6 +30,7 @@ pub(crate) struct DraftAssetOperations<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetReferenceKind {
     MediaItem,
+    ArtworkSource,
     SoundDefinition,
     CaptionSource,
     DraftOperation,
@@ -39,6 +41,7 @@ impl AssetReferenceKind {
     pub(crate) const fn label(self) -> &'static str {
         match self {
             Self::MediaItem => "media item",
+            Self::ArtworkSource => "artwork source",
             Self::SoundDefinition => "sound definition",
             Self::CaptionSource => "caption source",
             Self::DraftOperation => "draft operation",
@@ -103,6 +106,15 @@ pub(crate) fn project_asset_references(project: &Project) -> Vec<AssetReference>
             | TimelineItem::ComponentInstance(_) => None,
         })
         .collect();
+    for asset in &project.assets {
+        if let Some(derivation) = &asset.artwork_derivation {
+            references.push(AssetReference {
+                asset_id: derivation.source_asset_id.clone(),
+                kind: AssetReferenceKind::ArtworkSource,
+                owner_id: asset.id.clone(),
+            });
+        }
+    }
     for definition in &project.sound_definitions {
         references.extend(
             definition
@@ -221,6 +233,7 @@ pub(crate) fn validate_project_asset_references(
     project: &Project,
     context: &str,
 ) -> Result<(), CoreError> {
+    validate_artwork_derivations(project, context)?;
     let assets = project
         .assets
         .iter()
@@ -752,6 +765,123 @@ fn collect_files(
     Ok(())
 }
 
+fn validate_artwork_derivations(project: &Project, context: &str) -> Result<(), CoreError> {
+    let fail = || {
+        CoreError::new(
+            ErrorCode::AssetIntegrityFailed,
+            format!("{context} contains invalid artwork source provenance"),
+        )
+    };
+    let by_id: std::collections::HashMap<_, _> =
+        project.assets.iter().map(|a| (a.id.as_str(), a)).collect();
+    for asset in &project.assets {
+        let Some(d) = &asset.artwork_derivation else {
+            continue;
+        };
+        let source = by_id.get(d.source_asset_id.as_str()).ok_or_else(fail)?;
+        let radius = d.parameters.outline.radius;
+        if project.schema_version < 48
+            || d.version != 1
+            || d.parameters.validate().is_err()
+            || asset.media_type != MediaType::Image
+            || source.media_type != MediaType::Image
+            || d.source_width == 0
+            || d.source_width > 512
+            || d.source_height == 0
+            || d.source_height > 512
+            || d.content_offset != [radius, radius]
+            || !source
+                .content_hash
+                .as_ref()
+                .is_some_and(|h| h.algorithm == "sha256" && h.digest == d.source_hash)
+            || !source.probe.as_ref().is_some_and(|p| {
+                p.video_width == Some(d.source_width) && p.video_height == Some(d.source_height)
+            })
+            || !asset.probe.as_ref().is_some_and(|p| {
+                p.video_width == Some(d.source_width + radius * 2)
+                    && p.video_height == Some(d.source_height + radius * 2)
+            })
+        {
+            return Err(fail());
+        }
+        let mut seen = HashSet::new();
+        let mut next = asset;
+        while let Some(link) = &next.artwork_derivation {
+            if !seen.insert(next.id.as_str()) {
+                return Err(fail());
+            }
+            next = by_id
+                .get(link.source_asset_id.as_str())
+                .copied()
+                .ok_or_else(fail)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn store_artwork_content(
+    storage: &dyn Storage,
+    dir: &Path,
+    bytes: &[u8],
+    rollback: &mut UncommittedResources,
+) -> Result<StoredAsset, CoreError> {
+    let digest = format!("{:x}", Sha256::digest(bytes));
+    let relative_path = hash_relative_path(&digest);
+    let destination = dir.join(&relative_path);
+    let parent = destination
+        .parent()
+        .expect("content-addressed asset has parent");
+    // Check each existing managed directory rather than following a substituted link.
+    for directory in [
+        dir.join("assets"),
+        dir.join("assets/sha256"),
+        parent.to_owned(),
+    ] {
+        match storage.entry_kind(&directory) {
+            Ok(crate::persistence::StorageEntryKind::Directory) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => storage
+                .create_dir_all(&directory)
+                .map_err(|e| CoreError::io("cannot create artwork asset directory", e))?,
+            _ => {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "unsafe artwork asset directory",
+                ));
+            }
+        }
+    }
+    match storage.entry_kind(&destination) {
+        Ok(crate::persistence::StorageEntryKind::File) => {
+            if hash_file(storage, &destination)? != (digest.clone(), bytes.len() as u64) {
+                return Err(CoreError::new(
+                    ErrorCode::AssetIntegrityFailed,
+                    "artwork content-address collision",
+                ));
+            }
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            rollback.track_absent(storage, destination.clone())?;
+            storage
+                .atomic_replace(&destination, bytes)
+                .map_err(|e| CoreError::io("cannot publish artwork asset", e))?;
+        }
+        _ => {
+            return Err(CoreError::new(
+                ErrorCode::AssetIntegrityFailed,
+                "unsafe artwork asset destination",
+            ));
+        }
+    }
+    Ok(StoredAsset {
+        content_hash: ContentHash {
+            algorithm: "sha256".into(),
+            digest,
+        },
+        relative_path,
+        size_bytes: bytes.len() as u64,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -854,6 +984,7 @@ mod tests {
             updated_at_ms: 1,
             settings: ProjectSettings::default(),
             assets: vec![Asset {
+                artwork_derivation: None,
                 id: "asset".into(),
                 media_type: MediaType::Video,
                 file_name: "clip.mp4".into(),

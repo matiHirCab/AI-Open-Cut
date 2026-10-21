@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import {
+  removeArtworkIntegration,
+  restoreArtworkIntegrationRaw,
+} from "./artwork-integration-projection";
+import {
   removeChannelPackAdditions,
   restoreChannelPackRaw,
 } from "./channel-packs-projection";
@@ -42,7 +46,7 @@ export const removeNarrationProfileAdditions = <T>(
   name: Catalog,
   copy = true
 ): T => {
-  const base = copy ? structuredClone(source) : source;
+  const base = removeArtworkIntegration(source, copy);
   const result = removeShortPlanningOwnership(
     removeChannelPackAdditions(
       removeNarrationBlockAdditions(base, name, false),
@@ -98,7 +102,7 @@ export const removeNarrationProfileAdditions = <T>(
 };
 
 export const restoreNarrationCatalogMarker = <T>(source: T): T => {
-  const result = structuredClone(source);
+  const result = removeArtworkIntegration(source);
   if (at(result, ["projectSchemaVersion"]) === 47) {
     (result as RecordValue).projectSchemaVersion = 46;
   }
@@ -108,7 +112,10 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
   return result;
 };
 
-export const restoreNarrationProfileRaw = (input: string): string => {
+export const restoreNarrationProfileRaw = (input: string): string =>
+  restoreNarrationProfileBase(restoreArtworkIntegrationRaw(input));
+
+const restoreNarrationProfileBase = (input: string): string => {
   const withoutBlocks = restoreNarrationBlocksRaw(input);
   if (withoutBlocks !== input) {
     return restoreNarrationProfileRaw(withoutBlocks);

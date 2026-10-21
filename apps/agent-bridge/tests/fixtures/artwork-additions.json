@@ -1,0 +1,246 @@
+{
+  "mcp-surface-v1": [
+    {
+      "path": [
+        "toolDefinitions",
+        "editor_get_status",
+        "outputSchema",
+        "properties",
+        "projectSchemaVersion",
+        "const"
+      ],
+      "before": 46,
+      "after": 47
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectGetStateOutputPropertiesProjectProperties",
+        "schemaVersion",
+        "const"
+      ],
+      "before": 46,
+      "after": 47
+    },
+    {
+      "path": [
+        "$defs",
+        "ProjectPropertiesAssetsItemsProperties",
+        "artworkDerivation"
+      ],
+      "after": {
+        "additionalProperties": false,
+        "properties": {
+          "contentOffset": {
+            "items": {
+              "maximum": 16,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "cleanup": {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "items": {
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "type": "array"
+                  },
+                  "tolerance": {
+                    "maximum": 255,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": ["color", "tolerance"],
+                "type": "object"
+              },
+              "outline": {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "items": {
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 4,
+                    "minItems": 4,
+                    "type": "array"
+                  },
+                  "radius": {
+                    "maximum": 16,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": ["color", "radius"],
+                "type": "object"
+              }
+            },
+            "required": ["outline"],
+            "type": "object"
+          },
+          "sourceAssetId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceHash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "sourceHeight": {
+            "maximum": 512,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sourceWidth": {
+            "maximum": 512,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "version": {
+            "const": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "contentOffset",
+          "parameters",
+          "sourceAssetId",
+          "sourceHash",
+          "sourceHeight",
+          "sourceWidth",
+          "version"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "contract-ownership-v1": [
+    {
+      "path": ["categories", "artworkPreparation"],
+      "after": {
+        "canonical": "contracts/artwork-preparation-v1.json",
+        "consumers": [
+          "crates/editor-core/src/model/artwork.rs",
+          "crates/editor-core/src/model.rs",
+          "crates/editor-core/src/assets/artwork.rs",
+          "crates/editor-core/src/assets.rs",
+          "crates/editor-core/src/store/artwork.rs",
+          "crates/editor-core/src/store.rs",
+          "crates/editor-core/src/migrations.rs",
+          "crates/editor-core/tests/artwork_preparation.rs",
+          "apps/headless/src/main.rs",
+          "apps/agent-bridge/src/artwork/contract.ts",
+          "apps/agent-bridge/src/artwork/cli.ts",
+          "apps/agent-bridge/src/artwork-cli.ts",
+          "apps/agent-bridge/src/schemas.ts",
+          "apps/agent-bridge/src/headless-contract.ts",
+          "apps/agent-bridge/tests/artwork-contract.ts",
+          "apps/agent-bridge/tests/artwork.test.ts",
+          "apps/agent-bridge/tests/fixtures/artwork-projection.ts",
+          "apps/agent-bridge/tests/contracts.test.ts",
+          "docs/artwork-preparation.md",
+          "apps/agent-bridge/tests/artwork-cli.test.ts",
+          "apps/agent-bridge/tests/fixtures/artwork-additions.json",
+          "apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json",
+          "scripts/verify-artwork-preparation.py",
+          "apps/agent-bridge/tests/smoke.test.ts",
+          "crates/editor-core/tests/speech_alignment.rs"
+        ]
+      }
+    }
+  ],
+  "headless-protocol-v1": [
+    {
+      "path": ["operations"],
+      "before": [
+        "analyze_audio",
+        "commit_draft",
+        "commit_generated_asset",
+        "commit_transcription",
+        "create_draft",
+        "create_project",
+        "delete_asset",
+        "discard_draft",
+        "edit",
+        "edit_batch",
+        "export_video",
+        "get_draft",
+        "get_draft_state",
+        "get_state",
+        "import_asset",
+        "list_projects",
+        "narration_profile_create",
+        "narration_profile_get",
+        "narration_profile_list",
+        "narration_profile_resolve",
+        "narration_profile_update",
+        "open_project",
+        "rebase_draft",
+        "redo",
+        "render_draft_preview",
+        "render_preview",
+        "render_preview_range",
+        "render_review_range",
+        "replace_generated_asset",
+        "resolve_asset_input",
+        "status",
+        "undo",
+        "update_draft",
+        "validate_speech_alignment"
+      ],
+      "after": [
+        "analyze_audio",
+        "commit_artwork",
+        "commit_draft",
+        "commit_generated_asset",
+        "commit_transcription",
+        "create_draft",
+        "create_project",
+        "delete_asset",
+        "discard_draft",
+        "edit",
+        "edit_batch",
+        "export_video",
+        "get_draft",
+        "get_draft_state",
+        "get_state",
+        "import_asset",
+        "list_projects",
+        "narration_profile_create",
+        "narration_profile_get",
+        "narration_profile_list",
+        "narration_profile_resolve",
+        "narration_profile_update",
+        "open_project",
+        "prepare_artwork",
+        "rebase_draft",
+        "redo",
+        "render_draft_preview",
+        "render_preview",
+        "render_preview_range",
+        "render_review_range",
+        "replace_generated_asset",
+        "resolve_asset_input",
+        "status",
+        "undo",
+        "update_draft",
+        "validate_speech_alignment"
+      ]
+    }
+  ]
+}

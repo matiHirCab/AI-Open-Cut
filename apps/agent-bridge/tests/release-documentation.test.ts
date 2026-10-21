@@ -15,8 +15,8 @@ describe("release documentation corpus", () => {
     const value: Record<string, unknown> = structuredClone(
       readDocumentationExample()
     );
-    expect(value.projectSchemaVersion).toBe(47);
-    for (const projectSchemaVersion of [46, 48, undefined, "47"]) {
+    expect(value.projectSchemaVersion).toBe(48);
+    for (const projectSchemaVersion of [47, 49, undefined, "48"]) {
       const invalid = { ...value, projectSchemaVersion };
       if (projectSchemaVersion === undefined) {
         Reflect.deleteProperty(invalid, "projectSchemaVersion");

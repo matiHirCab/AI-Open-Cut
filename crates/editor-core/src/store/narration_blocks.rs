@@ -303,6 +303,7 @@ impl EditorCore {
                     probe.duration_ms = Some(generated.duration_ms);
                     probe.has_audio = true;
                     project.assets.push(Asset {
+                        artwork_derivation: None,
                         id: block.binding.asset_id.clone(),
                         media_type: MediaType::Audio,
                         file_name: generated_display_name(&generated.origin),

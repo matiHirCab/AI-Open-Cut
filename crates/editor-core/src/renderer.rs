@@ -2021,6 +2021,7 @@ mod tests {
         assert!(process.executions.lock().unwrap().is_empty());
 
         project.assets.push(crate::Asset {
+            artwork_derivation: None,
             id: "missing-asset".into(),
             media_type: MediaType::Video,
             file_name: "video.mp4".into(),
@@ -2190,6 +2191,7 @@ mod tests {
         std::fs::write(&output, b"existing").unwrap();
         let mut project = empty_project();
         project.assets.push(crate::Asset {
+            artwork_derivation: None,
             id: "video".into(),
             media_type: MediaType::Video,
             file_name: "video.mp4".into(),
@@ -2455,6 +2457,7 @@ mod tests {
             let mut project = valid.clone();
             if kind == "audio" {
                 project.assets.push(crate::Asset {
+                    artwork_derivation: None,
                     id: "audio".into(),
                     media_type: MediaType::Audio,
                     file_name: "audio.wav".into(),
@@ -3371,6 +3374,7 @@ mod tests {
     #[test]
     fn voiceover_activity_excludes_manual_and_automated_silence() {
         let assets = [crate::Asset {
+            artwork_derivation: None,
             id: "voice".into(),
             media_type: MediaType::Audio,
             file_name: "voice.wav".into(),
@@ -3979,6 +3983,7 @@ mod tests {
                 fps: 10,
             },
             assets: vec![crate::Asset {
+                artwork_derivation: None,
                 id: "tone".into(),
                 media_type: MediaType::Audio,
                 file_name: "tone.wav".into(),

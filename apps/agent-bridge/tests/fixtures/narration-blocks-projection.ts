@@ -1,6 +1,10 @@
 import { deepStrictEqual } from "node:assert/strict";
 import { createHash } from "node:crypto";
 import contract from "../../../../contracts/narration-blocks-v1.json";
+import {
+  removeArtworkIntegration,
+  restoreArtworkIntegrationRaw,
+} from "./artwork-integration-projection";
 import additions from "./narration-blocks-mcp-additions.json";
 import compactPins from "./narration-blocks-predecessor-compact-pins.json";
 import pins from "./narration-blocks-predecessor-pins.json";
@@ -102,7 +106,7 @@ export const removeNarrationBlockAdditions = <T>(
   if (!source || typeof source !== "object") {
     return source;
   }
-  const result = copy ? structuredClone(source) : source;
+  const result = removeArtworkIntegration(source, copy);
   const object = result as RecordValue;
   switch (name) {
     case "contract-ownership-v1":
@@ -189,6 +193,10 @@ const rawMarker = (input: string, compact: boolean) => {
 // Exact owned-fragment inverse; dedicated tests pin complete predecessor hashes.
 // Unrelated data stays present so historical parity tests can detect its drift.
 export const restoreNarrationBlocksRaw = (input: string): string => {
+  const withoutArtwork = restoreArtworkIntegrationRaw(input);
+  if (withoutArtwork !== input) {
+    return restoreNarrationBlocksRaw(withoutArtwork);
+  }
   const source = JSON.parse(input);
   const compact = !input.includes("\n");
   let name: string;
