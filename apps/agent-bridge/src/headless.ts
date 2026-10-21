@@ -7,6 +7,7 @@ import { z } from "zod/v4";
 
 import type { BridgeConfig } from "./config";
 import { BridgeError, eventSchema, reportedCoreError } from "./headless-events";
+import { confirmedCoreError } from "./production-requests/core-outcome";
 import { RenderWorker } from "./render-worker";
 
 // biome-ignore lint/performance/noBarrelFile: Preserve the existing error import API for all bridge consumers.
@@ -226,7 +227,7 @@ export const callHeadless = async <Output>(
       if (event.type === "progress") {
         options.onProgress?.(event.progress);
       } else if (event.type === "error") {
-        reportedError = reportedCoreError(event.error);
+        reportedError = confirmedCoreError(reportedCoreError(event.error));
       } else {
         result = schema.parse(event.result);
       }

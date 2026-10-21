@@ -23,7 +23,7 @@ import {
   channelPackSchema,
   channelRequestSchema,
 } from "../src/channel-packs/contract";
-import { restoreChannelPackRaw } from "./fixtures/channel-packs-projection";
+import { restoreChannelPackRaw } from "./fixtures/durable-main47-compat";
 
 export const assertChannelContractConsumer = (source: string): void => {
   const parsed = createSourceFile(

@@ -448,7 +448,7 @@ it.each([
     const { readFile } = await import("node:fs/promises");
     const { createHash } = await import("node:crypto");
     const { restoreNarrationBlocksRaw } = await import(
-      "./fixtures/narration-blocks-projection"
+      "./fixtures/durable-main47-compat"
     );
     const { default: pins } = await import(
       "./fixtures/narration-blocks-predecessor-pins.json"
@@ -477,7 +477,7 @@ it.each([
 it("does not invert changed narration schema additions or duplicate operation declarations", async () => {
   const { readFile } = await import("node:fs/promises");
   const { removeNarrationBlockAdditions } = await import(
-    "./fixtures/narration-blocks-projection"
+    "./fixtures/durable-main47-compat"
   );
   const mcp = JSON.parse(
     await readFile(

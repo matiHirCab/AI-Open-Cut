@@ -1,0 +1,13 @@
+# Artifact approval before executable integration
+
+Independent reviewer /root/review_177 explicitly approved proposal, design, delta spec, tasks and planning-oracles after checking the frozen pretty and compact predecessors. Approval: "Apruebo explícitamente los artefactos del follow-up ... No quedan bloqueantes de diseño. Esta aprobación autoriza la integración descrita; no acredita implementación, CODEOWNER ni CI futuros."
+
+After discovering exact-head Render parity failure118119915689, the reviewer separately approved the documented native hero inventory correction before any executable edit: "Apruebo explícitamente la ampliación de OpenSpec ... exige una aparición por nombre y conserva el conteo histórico de78, la igualdad del inventario completo y todos los oráculos nativos ... Ambos casos con aliases deberán pasar con headless/FFmpeg reales. No se autorizan cambios de renderer, runtime, timeouts ni workflows."
+
+The final design/spec include both approvals' constraints. No implementation files had been edited and no rebase had started at approval. CODEOWNER and final exact-head CI remain separate delivery conditions.
+
+The reviewer subsequently approved task3.2's preparation-versus-execution clarification and exact own-only closure plan. The reviewer also explicitly approved the no-op raw inverse optimization before its executable edit: safe null/primitive/category shape checks, Object.hasOwn and unchanged original bytes on absence; present malformed/null own additions must still fail. Required no-op/negative controls and unchanged timeouts remain mandatory. Approval does not establish that either pending timing failure is resolved.
+
+After observing one genuine debug hero timeout (120018ms standalone) and one genuine debug alias pass, the reviewer approved both unchanged native acceptance cases through the existing release-binary override as local functional evidence: the approved design specifies no build profile. This does not establish the timeout's cause, debug performance or future CI. All remaining required local gates must pass before verified draft publication, and actual new-head CI Render parity with its existing debug build remains mandatory. No debug retry without a verifiable hypothesis is required or claimed.
+
+Final independent reviewer approval after all fresh implementation checks: "Apruebo la conformidad y el archivo únicamente de integrate-independent-governance-additions." Completeness/correctness/coherence confirmed with1065 unit passes,78 strict items and prearchive rejection only for this active change. Approval covers synchronization of only the two new scenarios and own archival; later gates/publication/exact-head CI remain actual observations, CODEOWNER separate.

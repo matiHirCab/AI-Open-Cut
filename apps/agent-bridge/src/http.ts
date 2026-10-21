@@ -11,6 +11,7 @@ import { createMcpHandler } from "@modelcontextprotocol/server";
 import type { BridgeConfig } from "./config";
 import type { HeadlessClient } from "./headless";
 import type { JobRegistry } from "./jobs";
+import type { DurableProductionService } from "./production-requests/service";
 import { createServer } from "./server";
 import type { SpeechApplicationService } from "./speech";
 import type { TranscriptionApplicationService } from "./transcription";
@@ -56,10 +57,11 @@ export const serveHttp = (
   headless: HeadlessClient,
   jobs: JobRegistry,
   config: BridgeConfig,
-  health: () => Promise<Record<string, unknown>>
+  health: () => Promise<Record<string, unknown>>,
+  production?: DurableProductionService
 ) => {
   const handler = createMcpHandler(() =>
-    createServer(speech, headless, jobs, config, transcription)
+    createServer(speech, headless, jobs, config, transcription, production)
   );
   const nodeHandler = toNodeHandler(handler);
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one boundary handler keeps all rejection paths before MCP dispatch.

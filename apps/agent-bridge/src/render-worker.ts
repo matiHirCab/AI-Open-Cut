@@ -6,6 +6,7 @@ import type { BridgeConfig } from "./config";
 import type { HeadlessCallOptions } from "./headless";
 import type { HeadlessRequest } from "./headless-contract";
 import { BridgeError, eventSchema } from "./headless-events";
+import { confirmedCoreError } from "./production-requests/core-outcome";
 
 export const WORKER_LINE_BYTES = 16 * 1024 * 1024;
 export const WORKER_STARTUP_MS = 5000;
@@ -226,12 +227,14 @@ export class RenderWorker {
               options.onProgress?.(event.progress);
             } else if (event.type === "error") {
               reject(
-                new BridgeError(
-                  event.error.code,
-                  event.error.message,
-                  event.error.retryable,
-                  undefined,
-                  event.error
+                confirmedCoreError(
+                  new BridgeError(
+                    event.error.code,
+                    event.error.message,
+                    event.error.retryable,
+                    undefined,
+                    event.error
+                  )
                 )
               );
             } else {

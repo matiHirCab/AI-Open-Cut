@@ -33,6 +33,7 @@ import {
   verifyComponentDefinitionWorkflow,
   verifySlotRegressionWorkflow,
 } from "./component-workflow";
+import { verifyDurableProductionWorkflow } from "./durable-production-workflow";
 import { verifyFfmpegSpawnTransportWorkflow } from "./ffmpeg-spawn-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
@@ -755,4 +756,8 @@ it("reconciles a committed job after actual bridge death and blocks orphan accum
 it("exposes preparation progress before completion through packaged MCP jobs", async () => {
   await verifyRenderPreparationProgressWorkflow(bridgeParameters);
   await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
+});
+
+it("retains production intent and truthful outcomes through actual MCP reconnect and process death", async () => {
+  await verifyDurableProductionWorkflow(bridgeParameters);
 });

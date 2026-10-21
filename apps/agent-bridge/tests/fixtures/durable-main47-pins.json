@@ -1,0 +1,88 @@
+{
+  "main47": {
+    "mcp-surface-v1": {
+      "rawSha256": "428aee1ef1fabdc4ddc9b634965c32291e0a4ae98dc8534ee2c0c8a4e91aae67",
+      "compactSha256": "2b12f3fd341518c2bb179ea0ca1f859c1506cfa3e6b3ae3e923c721c9943b6a5"
+    },
+    "contract-ownership-v1": {
+      "rawSha256": "34b1613d7b93089ed109da7c5a0d6480c18a3031e153928e4baceacde099eea2",
+      "compactSha256": "7174b30b38df8dc28afa1405b333142cd19cbb37a48936efdda12b6ca5c8e579"
+    },
+    "headless-protocol-v1": {
+      "rawSha256": "fd9e618561829159d7ad43898d9be45972716cbc89f70e94422b33a636aa03c6",
+      "compactSha256": "02a2e034d34832577a9d496de44265841d873b4289a7c48f02c983148ac238f9"
+    }
+  },
+  "durable228": {
+    "mcp-surface-v1": {
+      "rawSha256": "2e10981cfa0dd00a79079169c1168e7b068f14c60a2b44d71772b16f449e4713",
+      "compactSha256": "90f53bf047413600970a89d36fa65d5e2c260e10d4533df97ecb9ac426ad2b31"
+    },
+    "contract-ownership-v1": {
+      "rawSha256": "4fa1441ef0b6c75885ba973e3cccb242878aee96076d8b45baeea71e92ec89ab",
+      "compactSha256": "b908e4918b03c4e8e8d45268107d887cb0650cc58d071c785522338c5f5f4625"
+    },
+    "headless-protocol-v1": {
+      "rawSha256": "0a6e740abb64995d581d33bec99ce30fb6cd981fd357fe80374e65b39ba25bdb",
+      "compactSha256": "4f68bced51d9d95ba5ca36f6363513d94206eaf2009a86c5b98a7e9953da62d3"
+    }
+  },
+  "mainShortOwnership": {
+    "canonical": "contracts/short-candidate-planning-cli-v1.json",
+    "consumers": [
+      "apps/agent-bridge/src/short-candidates/contract.ts",
+      "apps/agent-bridge/src/short-candidates/planner.ts",
+      "apps/agent-bridge/src/short-candidates/service.ts",
+      "apps/agent-bridge/src/short-candidates/cli.ts",
+      "apps/agent-bridge/src/short-candidates-cli.ts",
+      "apps/agent-bridge/tests/short-candidates-contract.ts",
+      "apps/agent-bridge/tests/short-candidates.test.ts",
+      "apps/agent-bridge/tests/fixtures/short-candidates-projection.ts",
+      "apps/agent-bridge/tests/fixtures/short-candidates-predecessor-ownership.raw",
+      "docs/short-candidate-planning.md",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "apps/agent-bridge/tests/short-candidates-workflow.ts"
+    ]
+  },
+  "originalDurableOwnership": {
+    "canonical": "contracts/durable-production-requests-v1.json",
+    "consumers": [
+      "apps/agent-bridge/src/production-requests/contract.ts",
+      "apps/agent-bridge/src/production-requests/store.ts",
+      "apps/agent-bridge/src/production-requests/service.ts",
+      "apps/agent-bridge/src/production-requests/prepare.ts",
+      "apps/agent-bridge/src/production-requests/core-outcome.ts",
+      "apps/agent-bridge/src/server/production-requests.ts",
+      "apps/agent-bridge/src/config.ts",
+      "apps/agent-bridge/src/index.ts",
+      "apps/agent-bridge/src/jobs.ts",
+      "apps/agent-bridge/src/job-runtime.ts",
+      "apps/agent-bridge/src/headless.ts",
+      "apps/agent-bridge/src/render-worker.ts",
+      "apps/agent-bridge/tests/durable-production-contract.ts",
+      "apps/agent-bridge/tests/durable-production.test.ts",
+      "apps/agent-bridge/tests/durable-production-store.test.ts",
+      "apps/agent-bridge/tests/durable-production-service.test.ts",
+      "apps/agent-bridge/tests/durable-production-settlement.test.ts",
+      "apps/agent-bridge/tests/durable-production-core-outcome.test.ts",
+      "apps/agent-bridge/tests/durable-production-mcp.test.ts",
+      "apps/agent-bridge/tests/durable-production-workflow.ts",
+      "apps/agent-bridge/tests/fixtures/durable-production-projection.ts",
+      "apps/agent-bridge/tests/fixtures/durable-production-predecessor-mcp-surface-v1.raw",
+      "apps/agent-bridge/tests/fixtures/durable-production-predecessor-contract-ownership-v1.raw",
+      "apps/agent-bridge/tests/contracts.test.ts",
+      "docs/job-restart.md",
+      "docs/adr/0005-ephemeral-job-restart-semantics.md",
+      "apps/agent-bridge/tests/fixtures/durable-render-gate.ts",
+      "apps/agent-bridge/tests/smoke.test.ts",
+      "apps/agent-bridge/tests/packaged-smoke.test.ts",
+      "apps/agent-bridge/tests/desktop-compositing-workflow.ts",
+      "apps/agent-bridge/tests/master-normalization.test.ts",
+      "apps/agent-bridge/tests/render-budget.test.ts",
+      "apps/agent-bridge/tests/diagnostic-union-projection.test.ts",
+      "apps/agent-bridge/tests/short-candidates-contract.ts",
+      "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
+      "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
+    ]
+  }
+}

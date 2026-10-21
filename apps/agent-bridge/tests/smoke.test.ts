@@ -32,6 +32,7 @@ import { verifyAudioBusWorkflow } from "./audio-buses-workflow";
 import { verifyAudioEventWorkflow } from "./audio-events-workflow";
 import { verifyBlendModeWorkflow } from "./blend-mode-workflow";
 import { verifyComponentWorkflow } from "./component-workflow";
+import { verifyDurableProductionWorkflow } from "./durable-production-workflow";
 import { verifyExtendedVisualWorkflow } from "./extended-visual-workflow";
 import { verifyFfmpegSpawnTransportWorkflow } from "./ffmpeg-spawn-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
@@ -1415,4 +1416,8 @@ it("reconciles a committed job after actual bridge death and blocks orphan accum
 it("exposes preparation progress before completion through MCP jobs", async () => {
   await verifyRenderPreparationProgressWorkflow(bridgeParameters);
   await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
+});
+
+it("retains production intent and truthful outcomes through actual MCP reconnect and process death", async () => {
+  await verifyDurableProductionWorkflow(bridgeParameters);
 });
