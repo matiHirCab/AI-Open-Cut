@@ -24,7 +24,9 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
+import { narrationCleanupUnconfirmed } from "./fixtures/narration-cli-process";
 import { verifyIllustratedWorkflow } from "./illustrated-workflow-native";
+import { verifyNarrationBlocksWorkflow } from "./narration-blocks-workflow";
 import { verifyNativeHeroCardWorkflow } from "./native-hero-workflow";
 import { verifyNativeMotifMedia } from "./native-motif-pack-native";
 import { verifyNativeMotifWorkflow } from "./native-motif-pack-workflow";
@@ -522,6 +524,22 @@ for (const mode of ["source", "packaged"] as const) {
           mode
         );
         records.push(timingEvidence);
+        try {
+          records.push(
+            await verifyNarrationBlocksWorkflow({
+              ...environment,
+              OPENCUT_NARRATION_TEST_MODE: mode,
+            })
+          );
+        } catch (error) {
+          if (narrationCleanupUnconfirmed(error)) {
+            roots.delete(root);
+            console.error(
+              `Unconfirmed narration cleanup; fixture retained: ${root}`
+            );
+          }
+          throw error;
+        }
         const hero = await verifyNativeHeroCardWorkflow(
           client,
           call,

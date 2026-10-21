@@ -58,3 +58,21 @@ export class BridgeError extends Error {
     this.renderBudget = details.renderBudget;
   }
 }
+
+const confirmedNativeErrors = new WeakSet<BridgeError>();
+export const reportedCoreError = (
+  input: z.infer<typeof errorSchema>
+): BridgeError => {
+  const error = errorSchema.parse(input);
+  const result = new BridgeError(
+    error.code,
+    error.message,
+    error.retryable,
+    undefined,
+    error
+  );
+  confirmedNativeErrors.add(result);
+  return result;
+};
+export const isReportedCoreError = (error: unknown): error is BridgeError =>
+  error instanceof BridgeError && confirmedNativeErrors.has(error);

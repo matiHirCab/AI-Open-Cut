@@ -41,6 +41,18 @@ enum Request {
         #[serde(default)]
         styled_text_layers_version: Option<u32>,
     },
+    NarrationBlocksPlan {
+        input: opencut_editor_core::NarrationPlanInput,
+    },
+    CommitNarrationBlocks {
+        input: opencut_editor_core::CommitNarrationBlocksInput,
+    },
+    DetachNarrationBlock {
+        project_id: String,
+        expected_revision: u64,
+        manifest_id: String,
+        block_id: String,
+    },
     NarrationProfileList {},
     ChannelPackList {},
     ChannelPackGet {
@@ -412,6 +424,44 @@ fn dispatch(
             }
             sink.value(status(renderer))
         }
+        Request::NarrationBlocksPlan { input } => sink.value(core.plan_narration_blocks(input)?),
+        Request::CommitNarrationBlocks { mut input } => {
+            let paths = core.validate_narration_blocks_input(&input)?;
+            for (block, path) in input.blocks.iter_mut().zip(paths) {
+                let probe = renderer.probe(&path)?;
+                if !probe.has_audio || probe.duration_ms != Some(block.duration_ms) {
+                    return Err(CoreError::new(
+                        opencut_editor_core::ErrorCode::ValidationFailed,
+                        "narration duration/audio must match actual probed generated media",
+                    ));
+                }
+                block.path = path;
+                block.probe = MediaProbeFacts {
+                    duration_ms: probe.duration_ms,
+                    has_audio: probe.has_audio,
+                    has_video: probe.has_video,
+                    format_name: probe.format_name,
+                    video_codec: probe.video_codec,
+                    video_width: probe.video_width,
+                    video_height: probe.video_height,
+                    audio_codec: probe.audio_codec,
+                    audio_channels: probe.audio_channels,
+                    audio_sample_rate_hz: probe.audio_sample_rate_hz,
+                };
+            }
+            sink.value(core.commit_narration_blocks(input)?)
+        }
+        Request::DetachNarrationBlock {
+            project_id,
+            expected_revision,
+            manifest_id,
+            block_id,
+        } => sink.value(core.detach_narration_block(
+            &project_id,
+            expected_revision,
+            &manifest_id,
+            &block_id,
+        )?),
         Request::NarrationProfileList {} => sink.value(core.list_narration_profiles()?),
         Request::ChannelPackList {} => sink.value(core.list_channel_packs()?),
         Request::ChannelPackGet { pack_id } => sink.value(core.get_channel_pack(&pack_id)?),

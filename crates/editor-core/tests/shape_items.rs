@@ -261,6 +261,12 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         state["schemaVersion"] = json!(version);
         if state["schemaVersion"]
             .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            state.as_object_mut().unwrap().remove("narrationManifests");
+        }
+        if state["schemaVersion"]
+            .as_u64()
             .is_some_and(|version| version < 39)
         {
             state.as_object_mut().unwrap().remove("audioBuses");
@@ -296,6 +302,7 @@ fn schema14_migrates_current_history_and_rejects_old_shape_in_any_snapshot() {
         let dir = core.paths().project_dir(&id).unwrap();
         let mut old = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
         old["schemaVersion"] = json!(13);
+        old.as_object_mut().unwrap().remove("narrationManifests");
         old.as_object_mut().unwrap().remove("audioBuses");
         old.as_object_mut().unwrap().remove("soundDefinitions");
         clear_legacy_font_fields(&mut old);
@@ -407,6 +414,12 @@ fn old_schema_and_invalid_shapes_in_unused_hidden_definitions_never_rewrite() {
         p["schemaVersion"] = json!(version);
         if p["schemaVersion"]
             .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            p.as_object_mut().unwrap().remove("narrationManifests");
+        }
+        if p["schemaVersion"]
+            .as_u64()
             .is_some_and(|version| version < 39)
         {
             p.as_object_mut().unwrap().remove("audioBuses");
@@ -482,12 +495,19 @@ fn shape_legacy_keyframes_and_mixed_migration_history() {
     let (_root, core, id, _track) = setup();
     let mut state = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     state["schemaVersion"] = json!(13);
+    state.as_object_mut().unwrap().remove("narrationManifests");
     state.as_object_mut().unwrap().remove("audioBuses");
     state.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut state);
     let snapshot = |version| {
         let mut v = state.clone();
         v["schemaVersion"] = json!(version);
+        if v["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            v.as_object_mut().unwrap().remove("narrationManifests");
+        }
         if v["schemaVersion"]
             .as_u64()
             .is_some_and(|version| version < 39)

@@ -205,6 +205,12 @@ fn schema42_adopts_all41_sources_and_retained_history_without_inventing_dsp() {
     for version in 1..=41 {
         let mut source = original.clone();
         source["schemaVersion"] = json!(version);
+        if source["schemaVersion"]
+            .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            source.as_object_mut().unwrap().remove("narrationManifests");
+        }
         if version < 40 {
             source.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -274,10 +280,18 @@ fn premature_null_malformed_retained_and_future_dsp_fail_without_any_rewrite() {
         match case {
             "premature" => {
                 current["schemaVersion"] = json!(41);
+                current
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 current["audioBuses"][1]["dsp"] = catalog()["identity"].clone();
             }
             "premature_null" => {
                 current["schemaVersion"] = json!(41);
+                current
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 current["audioBuses"][1]["dsp"] = Value::Null;
             }
             "null" => current["audioBuses"][1]["dsp"] = Value::Null,
@@ -321,6 +335,7 @@ fn batch_alias_and_failed_legacy_draft_edits_preserve_every_source_byte() {
     let dir = root.path().join("projects").join(&id);
     let mut source = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     source["schemaVersion"] = json!(41);
+    source.as_object_mut().unwrap().remove("narrationManifests");
     std::fs::write(
         dir.join("project.json"),
         serde_json::to_vec_pretty(&source).unwrap(),

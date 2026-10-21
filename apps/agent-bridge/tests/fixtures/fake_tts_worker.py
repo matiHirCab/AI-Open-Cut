@@ -10,6 +10,12 @@ if os.environ.get("OPENCUT_TEST_IGNORE_TERM") == "1":
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
 
 
+pid_file = os.environ.get("OPENCUT_TEST_WORKER_PID_FILE")
+if pid_file:
+    with open(pid_file, "w") as owned_pid:
+        owned_pid.write(str(os.getpid()))
+
+
 VOICES = [
     {"accent": "American English", "available": True, "id": "test_voice", "isDefault": True, "label": "Test Voice", "language": "en-US", "locale": "en-US", "modelId": "fake/model", "previewSupported": True, "providerId": "fake-speech"},
     {"accent": "British English", "available": True, "id": "test_voice_gb", "isDefault": True, "label": "Test Voice GB", "language": "en-GB", "locale": "en-GB", "modelId": "fake/model", "previewSupported": True, "providerId": "fake-speech"},

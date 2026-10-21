@@ -233,6 +233,10 @@ fn schema29_migrates_root_components_and_all_retained_history_atomically() {
     .unwrap();
     fn legacy(snapshot: &mut Value, component: &Value) {
         snapshot["schemaVersion"] = json!(29);
+        snapshot
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
         snapshot.as_object_mut().unwrap().remove("audioBuses");
         snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         snapshot["components"] = json!([component]);
@@ -329,6 +333,7 @@ fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
             match case {
                 "old30_clock" => {
                     target["schemaVersion"] = json!(30);
+                    target.as_object_mut().unwrap().remove("narrationManifests");
                     target.as_object_mut().unwrap().remove("audioBuses");
                     target.as_object_mut().unwrap().remove("soundDefinitions");
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =
@@ -339,6 +344,7 @@ fn future_and_pre31_clocks_reject_current_or_history_without_disk_mutation() {
                 }
                 "old_clock" => {
                     target["schemaVersion"] = json!(29);
+                    target.as_object_mut().unwrap().remove("narrationManifests");
                     target.as_object_mut().unwrap().remove("audioBuses");
                     target.as_object_mut().unwrap().remove("soundDefinitions");
                     target["tracks"][1]["items"][0]["legacyAnimationClock"] =

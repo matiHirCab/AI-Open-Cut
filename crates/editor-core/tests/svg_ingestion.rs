@@ -229,6 +229,12 @@ fn svg_migration_current_history_and_future_rejection() {
         state["schemaVersion"] = json!(version);
         if state["schemaVersion"]
             .as_u64()
+            .is_some_and(|version| version < 47)
+        {
+            state.as_object_mut().unwrap().remove("narrationManifests");
+        }
+        if state["schemaVersion"]
+            .as_u64()
             .is_some_and(|version| version < 39)
         {
             state.as_object_mut().unwrap().remove("audioBuses");
@@ -272,6 +278,12 @@ fn svg_migration_current_history_and_future_rejection() {
         for version in [14, opencut_editor_core::PROJECT_SCHEMA_VERSION + 1] {
             let mut bad = state.clone();
             bad["schemaVersion"] = json!(version);
+            if bad["schemaVersion"]
+                .as_u64()
+                .is_some_and(|version| version < 47)
+            {
+                bad.as_object_mut().unwrap().remove("narrationManifests");
+            }
             if bad["schemaVersion"]
                 .as_u64()
                 .is_some_and(|version| version < 39)

@@ -105,7 +105,7 @@ pub(super) fn validate_package(package: &ChannelPackPackage) -> Result<(), CoreE
     valid_name(&package.name)?;
     package_bytes(package)?;
     if package.format_version != CHANNEL_PACK_FORMAT_VERSION
-        || package.component_schema_version != PROJECT_SCHEMA_VERSION
+        || package.component_schema_version != crate::CHANNEL_PACK_COMPONENT_SCHEMA_VERSION
     {
         return Err(invalid("unsupported channel format or component schema"));
     }
@@ -285,6 +285,7 @@ fn validation_project(
     fonts: BTreeMap<String, crate::FontRecord>,
 ) -> Project {
     Project {
+        narration_manifests: Vec::new(),
         schema_version: PROJECT_SCHEMA_VERSION,
         id: "channel_validation".into(),
         revision: 0,

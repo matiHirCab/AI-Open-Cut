@@ -35,9 +35,9 @@ impl EditorCore {
         crate::persistence::require_no_pending_transaction(self.storage.as_ref(), &dir)?;
         let source: Project = read_json(self.storage.as_ref(), &project_path(&dir))?;
         check_revision(&source, capture.expected_revision)?;
-        if source.schema_version != PROJECT_SCHEMA_VERSION {
+        if !matches!(source.schema_version, 46 | 47) {
             return Err(invalid(
-                "capture requires the current project schema; explicitly open/migrate the source first",
+                "capture requires a compatible schema46/47 source; explicitly open/migrate unsupported sources first",
             ));
         }
         validate_project_visual_properties(&source)?;
@@ -79,7 +79,7 @@ impl EditorCore {
         }
         let mut package = ChannelPackPackage {
             format_version: CHANNEL_PACK_FORMAT_VERSION,
-            component_schema_version: PROJECT_SCHEMA_VERSION,
+            component_schema_version: crate::CHANNEL_PACK_COMPONENT_SCHEMA_VERSION,
             name: capture.name.trim().into(),
             recipes: selected
                 .iter()

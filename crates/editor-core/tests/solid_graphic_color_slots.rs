@@ -352,6 +352,7 @@ fn schema44_adoption_and_future_or_mislabeled_history_are_atomic() {
     let original = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     let mut old = original.clone();
     old["schemaVersion"] = json!(44);
+    old.as_object_mut().unwrap().remove("narrationManifests");
     std::fs::write(p.join("project.json"), serde_json::to_vec(&old).unwrap()).unwrap();
     std::fs::write(
         p.join("history.json"),
@@ -412,6 +413,10 @@ fn legacy_slot_edit_fixture() -> (tempfile::TempDir, EditorCore, String, String,
     let dir = core.paths().project_dir(&id).unwrap();
     let mut project: Value = serde_json::from_slice(&files(&core, &id).0).unwrap();
     project["schemaVersion"] = json!(44);
+    project
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     let mut retained = project.clone();
     retained["revision"] = json!(0);
     std::fs::write(

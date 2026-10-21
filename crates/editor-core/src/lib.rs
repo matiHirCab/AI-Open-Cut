@@ -45,7 +45,7 @@ pub use renderer::{
 pub use store::{
     ChannelAppliedCaptionRole, ChannelAppliedComponent, ChannelCaptureResult,
     ChannelPackApplyResult, ChannelPackList, CommitGeneratedAssetRequest,
-    CommitGeneratedAssetResult, CommitTranscriptionRequest, EditorCore, ProjectSummary,
-    ReplaceGeneratedAssetRequest, ReplaceGeneratedAssetResult, ResolvedAssetInput,
-    TranscriptionSegment, WriteResult,
+    CommitGeneratedAssetResult, CommitNarrationBlocksResult, CommitTranscriptionRequest,
+    EditorCore, ProjectSummary, ReplaceGeneratedAssetRequest, ReplaceGeneratedAssetResult,
+    ResolvedAssetInput, TranscriptionSegment, WriteResult,
 };

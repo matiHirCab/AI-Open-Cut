@@ -2541,6 +2541,7 @@ mod tests {
 
     fn project() -> Project {
         Project {
+            narration_manifests: Vec::new(),
             master_normalization: None,
             sound_definitions: Vec::new(),
             audio_buses: crate::default_audio_buses(),

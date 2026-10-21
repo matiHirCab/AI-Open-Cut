@@ -26,7 +26,7 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
-import NARRATION_PROFILES from "../../../contracts/narration-profiles-v1.json";
+import NARRATION_BLOCKS from "../../../contracts/narration-blocks-v1.json";
 import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
 import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
@@ -1098,10 +1098,12 @@ describe("canonical public contracts", () => {
       channel_pack_update: true,
       commit_draft: true,
       commit_generated_asset: true,
+      commit_narration_blocks: true,
       commit_transcription: true,
       create_draft: true,
       create_project: true,
       delete_asset: true,
+      detach_narration_block: true,
       discard_draft: true,
       edit: true,
       edit_batch: true,
@@ -1111,6 +1113,7 @@ describe("canonical public contracts", () => {
       get_state: true,
       import_asset: true,
       list_projects: true,
+      narration_blocks_plan: true,
       narration_profile_create: true,
       narration_profile_get: true,
       narration_profile_list: true,
@@ -1150,7 +1153,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
+      projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1244,7 +1247,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: NARRATION_PROFILES.schemaVersion,
+        projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {

@@ -156,6 +156,7 @@ fn old_schema_cannot_smuggle_root_instances() {
     let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
     value["schemaVersion"] = json!(12);
+    value.as_object_mut().unwrap().remove("narrationManifests");
     value.as_object_mut().unwrap().remove("audioBuses");
     value.as_object_mut().unwrap().remove("soundDefinitions");
     clear_legacy_font_fields(&mut value);
@@ -576,6 +577,15 @@ fn migration_component_document(
     document["schemaVersion"] = json!(version);
     if document["schemaVersion"]
         .as_u64()
+        .is_some_and(|version| version < 47)
+    {
+        document
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
+    }
+    if document["schemaVersion"]
+        .as_u64()
         .is_some_and(|version| version < 39)
     {
         document.as_object_mut().unwrap().remove("audioBuses");
@@ -667,6 +677,11 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let typed: Project = serde_json::from_value(document).unwrap();
             let mut expected = serde_json::to_value(&typed).unwrap();
             expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected
+                .as_object_mut()
+                .unwrap()
+                .entry("narrationManifests")
+                .or_insert_with(|| serde_json::json!([]));
             expected["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             expected["soundDefinitions"] = json!([]);
@@ -675,6 +690,7 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             expected["fonts"] = json!({});
             let mut older = expected.clone();
             older["schemaVersion"] = json!(11);
+            older.as_object_mut().unwrap().remove("narrationManifests");
             older.as_object_mut().unwrap().remove("audioBuses");
             older.as_object_mut().unwrap().remove("soundDefinitions");
             clear_legacy_font_fields(&mut older);
@@ -683,6 +699,11 @@ fn source_schema_valid_transforms_preserve_content_and_reopen() {
             let older: Project = serde_json::from_value(older).unwrap();
             let mut expected_older = serde_json::to_value(&older).unwrap();
             expected_older["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+            expected_older
+                .as_object_mut()
+                .unwrap()
+                .entry("narrationManifests")
+                .or_insert_with(|| serde_json::json!([]));
             expected_older["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             expected_older["soundDefinitions"] = json!([]);

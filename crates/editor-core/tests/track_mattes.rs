@@ -174,6 +174,7 @@ fn strict_matte_wire_and_source_schema_guards_preserve_old_defaults() {
     let (_root, core, id, provider, _recipient) = setup();
     let mut value = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     value["schemaVersion"] = json!(33);
+    value.as_object_mut().unwrap().remove("narrationManifests");
     value.as_object_mut().unwrap().remove("audioBuses");
     value.as_object_mut().unwrap().remove("soundDefinitions");
     assert!(serde_json::from_value::<Project>(value.clone()).is_ok());
@@ -259,6 +260,7 @@ fn inventory(
 }
 fn predecessor33(value: &mut Value) {
     value["schemaVersion"] = json!(33);
+    value.as_object_mut().unwrap().remove("narrationManifests");
     value.as_object_mut().unwrap().remove("audioBuses");
     value.as_object_mut().unwrap().remove("soundDefinitions");
     for track in value["tracks"].as_array_mut().unwrap() {
@@ -321,6 +323,11 @@ fn genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_chang
     let migrated = serde_json::to_value(core.get_project(&id).unwrap()).unwrap();
     let mut expected = source.clone();
     expected["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+    expected
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     expected["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     expected["soundDefinitions"] = json!([]);
@@ -329,6 +336,11 @@ fn genuine33_current_undo_redo_and_own_base_draft_adopt34_without_semantic_chang
     for lane in ["undo", "redo"] {
         for snapshot in expected_history[lane].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(PROJECT_SCHEMA_VERSION);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .entry("narrationManifests")
+                .or_insert_with(|| serde_json::json!([]));
             snapshot["audioBuses"] =
                 serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
             snapshot["soundDefinitions"] = json!([]);
@@ -721,6 +733,11 @@ fn retained_component33_defaults_adopt_and_undo_redo_without_read_rewrites() {
     let before = inventory(&core, &id);
     let mut expected = raw;
     expected["schemaVersion"] = json!(opencut_editor_core::PROJECT_SCHEMA_VERSION);
+    expected
+        .as_object_mut()
+        .unwrap()
+        .entry("narrationManifests")
+        .or_insert_with(|| serde_json::json!([]));
     expected["audioBuses"] =
         serde_json::to_value(opencut_editor_core::default_audio_buses()).unwrap();
     expected["soundDefinitions"] = json!([]);

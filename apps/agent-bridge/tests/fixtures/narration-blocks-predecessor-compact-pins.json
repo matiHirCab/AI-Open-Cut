@@ -1,0 +1,15 @@
+{
+  "mcp-surface-v1.json": "e253d6cac2ad5fa8858d7f7812fc27a6ec3bc56357f482ec040632f22a788c17",
+  "headless-protocol-v1.json": "92ad9ff57e50735c9075ef39b3163186855bfd6a1843b7a1c6e5f7ba9e7a8692",
+  "contract-ownership-v1.json": "eec83d663c3238e24ce170e58d5804d4bf0bd44e43b25861b5e2e5c750a531af",
+  "animation-channels-v1.json": "e66b04a2973ed5410ca1d523d089c20c8077cd62c9815aedd9b4e4d73a39ba25",
+  "animation-presets-v1.json": "184fcb3433e5a9f2afcb5d09eafbd7dc0fdae73a8655e177b07353506a3acf9a",
+  "extended-visual-animation-v1.json": "dd52cfa0d12025ccf444d47f23a59c888e6952a2430345769335081af66df8a0",
+  "inherited-animation-timing-v1.json": "d3567e5a0ecc9c72423558e9881370bd7905be123484c72f143ce3147ff287bd",
+  "initial-motion-preset-pack-v1.json": "0828661d6d47a5a181dd6a5cb7371bd5e2bffbf1e372d1c4b3dc39bd3d4f7744",
+  "mask-models-v1.json": "b3cb08447417a51a4ffbdeb2e1fdafe30d89c3d0607e60ee3bff390d33a9854d",
+  "motion-blur-sampling-v1.json": "adccd60b1d5b1a22f295eb9a1f8f344e6dffc5d58361e4613253c64008436b1a",
+  "native-motif-pack-v1.json": "089dc693929b94658e543ceae14162f2d7c851dd8a752c437c8bfb6677d27020",
+  "native-role-team-v1.json": "68bf7c5755ef7a1204c49650a4c5d31a19b073bdfc14fb23c4b682523731f168",
+  "solid-graphic-color-slots-v1.json": "7354d52acde20e08166266f523ee4690fb8b969400c212b4435682e259cf3227"
+}

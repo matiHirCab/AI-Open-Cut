@@ -185,6 +185,15 @@ fn legacy(project: &mut Value, version: u32) {
     project["schemaVersion"] = json!(version);
     if project["schemaVersion"]
         .as_u64()
+        .is_some_and(|version| version < 47)
+    {
+        project
+            .as_object_mut()
+            .unwrap()
+            .remove("narrationManifests");
+    }
+    if project["schemaVersion"]
+        .as_u64()
         .is_some_and(|version| version < 39)
     {
         project.as_object_mut().unwrap().remove("audioBuses");
@@ -271,6 +280,10 @@ fn persisted_current_and_retained_documents_fail_closed() {
             match failure {
                 "old-document" => {
                     invalid["schemaVersion"] = json!(17);
+                    invalid
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("narrationManifests");
                     invalid.as_object_mut().unwrap().remove("audioBuses");
                     invalid.as_object_mut().unwrap().remove("soundDefinitions");
                 }

@@ -461,11 +461,19 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
     let mut history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     current["schemaVersion"] = json!(36);
+    current
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     current.as_object_mut().unwrap().remove("audioBuses");
     current.as_object_mut().unwrap().remove("soundDefinitions");
     for key in ["undo", "redo"] {
         for snapshot in history[key].as_array_mut().unwrap() {
             snapshot["schemaVersion"] = json!(36);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             snapshot.as_object_mut().unwrap().remove("audioBuses");
             snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -501,6 +509,10 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
         json!(opencut_editor_core::default_audio_buses())
     );
     adopted["schemaVersion"] = json!(36);
+    adopted
+        .as_object_mut()
+        .unwrap()
+        .remove("narrationManifests");
     adopted.as_object_mut().unwrap().remove("audioBuses");
     adopted.as_object_mut().unwrap().remove("soundDefinitions");
     assert_eq!(adopted, current);
@@ -517,6 +529,10 @@ fn authentic_schema36_adoption_migrates_complete_history_without_enabling_contro
                 json!(opencut_editor_core::default_audio_buses())
             );
             snapshot["schemaVersion"] = json!(36);
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .remove("narrationManifests");
             snapshot.as_object_mut().unwrap().remove("audioBuses");
             snapshot.as_object_mut().unwrap().remove("soundDefinitions");
         }
@@ -564,6 +580,10 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
                 "undo" | "redo" => {
                     let mut snapshot = current.clone();
                     snapshot["schemaVersion"] = json!(36);
+                    snapshot
+                        .as_object_mut()
+                        .unwrap()
+                        .remove("narrationManifests");
                     snapshot.as_object_mut().unwrap().remove("audioBuses");
                     snapshot.as_object_mut().unwrap().remove("soundDefinitions");
                     snapshots[location] = json!([snapshot]);
@@ -579,6 +599,10 @@ fn schema36_introduced_controls_reject_current_hidden_unused_and_history_before_
             }
             if !["undo", "redo"].contains(&location) {
                 project["schemaVersion"] = json!(36);
+                project
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("narrationManifests");
                 project.as_object_mut().unwrap().remove("audioBuses");
                 project.as_object_mut().unwrap().remove("soundDefinitions");
             }

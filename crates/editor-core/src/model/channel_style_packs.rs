@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub const CHANNEL_PACK_FORMAT_VERSION: u32 = 1;
+/// CP1 component semantics remain version46 across unrelated project migrations.
+pub const CHANNEL_PACK_COMPONENT_SCHEMA_VERSION: u32 = 46;
 pub const MAX_CHANNEL_PACK_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_CHANNEL_LIBRARY_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_CHANNEL_PACKS: usize = 16;

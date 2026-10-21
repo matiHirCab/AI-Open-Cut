@@ -245,6 +245,7 @@ fn capture_is_current_revision_readonly_and_rejects_pending_recovery() {
     std::fs::remove_file(transaction_path(&dir)).unwrap();
     let mut legacy: serde_json::Value = serde_json::from_slice(&project).unwrap();
     legacy["schemaVersion"] = 45.into();
+    legacy.as_object_mut().unwrap().remove("narrationManifests");
     let legacy = serde_json::to_vec_pretty(&legacy).unwrap();
     std::fs::write(project_path(&dir), &legacy).unwrap();
     assert_eq!(

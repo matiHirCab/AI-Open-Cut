@@ -3,6 +3,10 @@ import {
   removeChannelPackAdditions,
   restoreChannelPackRaw,
 } from "./channel-packs-projection";
+import {
+  removeNarrationBlockAdditions,
+  restoreNarrationBlocksRaw,
+} from "./narration-blocks-projection";
 import additions from "./narration-profiles-additions.json";
 import markerPins from "./narration-profiles-marker-pins.json";
 import {
@@ -40,7 +44,11 @@ export const removeNarrationProfileAdditions = <T>(
 ): T => {
   const base = copy ? structuredClone(source) : source;
   const result = removeShortPlanningOwnership(
-    removeChannelPackAdditions(base, name, false),
+    removeChannelPackAdditions(
+      removeNarrationBlockAdditions(base, name, false),
+      name,
+      false
+    ),
     false
   );
   const changes: Change[] = additions[name];
@@ -91,6 +99,9 @@ export const removeNarrationProfileAdditions = <T>(
 
 export const restoreNarrationCatalogMarker = <T>(source: T): T => {
   const result = structuredClone(source);
+  if (at(result, ["projectSchemaVersion"]) === 47) {
+    (result as RecordValue).projectSchemaVersion = 46;
+  }
   if (at(result, ["projectSchemaVersion"]) === 46) {
     (result as RecordValue).projectSchemaVersion = 45;
   }
@@ -98,6 +109,10 @@ export const restoreNarrationCatalogMarker = <T>(source: T): T => {
 };
 
 export const restoreNarrationProfileRaw = (input: string): string => {
+  const withoutBlocks = restoreNarrationBlocksRaw(input);
+  if (withoutBlocks !== input) {
+    return restoreNarrationProfileRaw(withoutBlocks);
+  }
   const document: unknown = JSON.parse(input);
   const catalog =
     document && typeof document === "object" && "categories" in document

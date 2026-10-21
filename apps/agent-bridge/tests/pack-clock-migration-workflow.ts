@@ -118,10 +118,12 @@ export const verifyPackClockMigrationWorkflow = async (
   const oldProject = structuredClone(originalProject);
   const oldHistory = structuredClone(originalHistory);
   oldProject.schemaVersion = 30;
+  Reflect.deleteProperty(oldProject, "narrationManifests");
   Reflect.deleteProperty(oldProject, "audioBuses");
   Reflect.deleteProperty(oldProject, "soundDefinitions");
   for (const snapshot of [...oldHistory.undo, ...oldHistory.redo]) {
     snapshot.schemaVersion = 30;
+    Reflect.deleteProperty(snapshot, "narrationManifests");
     Reflect.deleteProperty(snapshot, "audioBuses");
     Reflect.deleteProperty(snapshot, "soundDefinitions");
   }

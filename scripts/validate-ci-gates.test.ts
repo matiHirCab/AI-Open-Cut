@@ -2393,3 +2393,16 @@ describe("narration profile mandatory consumers", () => {
     }
   }
 });
+
+describe("narration block mandatory consumers", () => {
+  for (const consumer of [" --test narration_blocks", " tests/narration-blocks.test.ts", " tests/narration-blocks-workflow.test.ts", " tests/narration-blocks-cli.test.ts"]) {
+    for (const mask of [false, true]) {
+      it(`rejects narration block consumer ${consumer} ${mask ? "failure masking" : "omission"}`, () => {
+        const sources = moonPolicySources();
+        const parsed = JSON.parse(sources.bridgePackage!);
+        parsed.scripts["contracts:check"] = parsed.scripts["contracts:check"].replace(consumer, mask ? `${consumer} || true` : "");
+        expect(() => validateMoonPolicyBoundary({ ...sources, bridgePackage: JSON.stringify(parsed) })).toThrow("exact complete canonical command");
+      });
+    }
+  }
+});
