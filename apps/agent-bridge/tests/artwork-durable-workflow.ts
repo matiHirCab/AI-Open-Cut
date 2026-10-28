@@ -2,6 +2,9 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  accessSync,
+  chmodSync,
+  constants,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -9,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
@@ -38,7 +41,29 @@ const sourcePng = Buffer.from(
   "base64"
 );
 
+export function artworkDurableBackends(
+  base: Record<string, string | undefined> = {},
+  environment: NodeJS.ProcessEnv = process.env
+) {
+  const selection = environment.OPENCUT_ARTWORK_DURABLE_GENUINE;
+  if (selection !== undefined && selection !== "1") {
+    throw new Error("Unknown artwork durable verification mode");
+  }
+  const genuine = selection === "1";
+  const chosen = genuine ? environment : base;
+  const ffmpeg = chosen.OPENCUT_FFMPEG_PATH,
+    ffprobe = chosen.OPENCUT_FFPROBE_PATH;
+  if (!(ffmpeg && ffprobe && isAbsolute(ffmpeg) && isAbsolute(ffprobe))) {
+    throw new Error("Explicit absolute media backend paths required");
+  }
+  for (const path of [ffmpeg, ffprobe]) {
+    accessSync(path, constants.X_OK);
+  }
+  return { ffmpeg, ffprobe, genuine };
+}
+
 export async function verifyArtworkDurableWorkflow(base: Parameters) {
+  const backends = artworkDurableBackends(base.env);
   const root = mkdtempSync(join(tmpdir(), "opencut-artwork-durable-"));
   const projects = join(root, "projects"),
     work = join(root, "work"),
@@ -47,14 +72,35 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
   for (const path of [projects, work, exports, narration]) {
     mkdirSync(path);
   }
+  const allowlistPath = join(root, "probe-allowlist.json");
+  const hashes: Record<string, string> = {};
+  const allow = (...paths: string[]) => {
+    for (const path of paths) {
+      hashes[path] = hash(readFileSync(path));
+    }
+    writeFileSync(
+      allowlistPath,
+      JSON.stringify({ backend: backends.ffprobe, hashes, root })
+    );
+  };
+  allow();
+  const probe = join(root, "owned-probe");
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  if (!backends.genuine) {
+    writeFileSync(
+      probe,
+      `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(resolve(import.meta.dirname, "fixtures/artwork-durable-probe.mjs"))} ${quote(allowlistPath)} "$@"\n`
+    );
+    chmodSync(probe, 0o700);
+  }
   const environment = {
     ...base.env,
     OPENCUT_ALLOWED_MEDIA_DIRS: root,
     OPENCUT_CONFIG_ROOT: root,
     OPENCUT_DURABLE_PRODUCTION_REQUESTS: "1",
     OPENCUT_EXPORTS_DIR: exports,
-    OPENCUT_FFMPEG_PATH: "ffmpeg",
-    OPENCUT_FFPROBE_PATH: "ffprobe",
+    OPENCUT_FFMPEG_PATH: backends.ffmpeg,
+    OPENCUT_FFPROBE_PATH: backends.genuine ? backends.ffprobe : probe,
     OPENCUT_PROJECTS_DIR: projects,
     OPENCUT_TTS_WORK_DIR: work,
   };
@@ -143,6 +189,7 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
     });
     const preview = await workflow.preview(plan, context());
     expect(preview.ready).toBe(true);
+    allow(join(work, "owned-1.wav"));
     const committed = await workflow.commit(
       {
         expectedRevision: created.revision,
@@ -155,6 +202,7 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
     );
     const original = join(root, "original.png");
     writeFileSync(original, sourcePng);
+    allow(original);
     const imported = await native.call(
       {
         expectedRevision: committed.write.revision,
@@ -225,6 +273,7 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
       ),
       path: join(projectDirectory, asset.projectRelativePath),
     }));
+    allow(...assets.map((asset) => asset.path));
     await connect();
     const requestId = randomUUID();
     const identity = { requestId, version: 1 };
@@ -263,7 +312,17 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
         await call("production_request_get", identity, durableOutputSchemas.get)
       ).request;
     }
-    expect(terminal?.state).toBe("completed");
+    const diagnostic =
+      terminal?.state === "completed"
+        ? undefined
+        : JSON.stringify(
+            await call(
+              "job_get_status",
+              { jobId: started.job?.jobId },
+              jobSchema
+            )
+          );
+    expect(terminal?.state, diagnostic).toBe("completed");
     expect(terminal?.outcome?.kind).toBe("rendered");
     const job = await call(
       "job_get_status",
@@ -274,21 +333,25 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
       throw new Error("Native durable render did not publish an artifact");
     }
     const rendered = join(projectDirectory, job.artifact.relativePath);
-    const decoded = spawnSync("ffmpeg", [
-      "-v",
-      "error",
-      "-i",
-      rendered,
-      "-frames:v",
-      "1",
-      "-f",
-      "rawvideo",
-      "-pix_fmt",
-      "rgba",
-      "pipe:1",
-    ]);
-    expect(decoded.status, decoded.stderr.toString()).toBe(0);
-    expect(decoded.stdout).toHaveLength(64 * 64 * 4);
+    if (backends.genuine) {
+      const decoded = spawnSync(backends.ffmpeg, [
+        "-v",
+        "error",
+        "-i",
+        rendered,
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "pipe:1",
+      ]);
+      expect(decoded.status, decoded.stderr.toString()).toBe(0);
+      expect(decoded.stdout).toHaveLength(64 * 64 * 4);
+    } else {
+      expect(readFileSync(rendered, "utf8")).toBe("fake rendered media");
+    }
     expect(readFileSync(rendered)).toHaveLength(job.artifact.sizeBytes);
     await client?.close();
     await connect();
@@ -360,6 +423,9 @@ export async function verifyArtworkDurableWorkflow(base: Parameters) {
     for (const asset of assets) {
       expect(hash(readFileSync(asset.path))).toBe(asset.hash);
     }
+    process.stdout.write(
+      `Combined artwork durable acceptance: ${backends.genuine ? "genuine-media-tools" : "hermetic-configured-backends"}\n`
+    );
   } finally {
     await client?.close();
     validator.clear();

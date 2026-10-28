@@ -1,0 +1,3 @@
+# Exact issue-scoped specification approval
+
+2026-10-28: Delegated reviewer in source thread01a17345-49d7-76ec-9537-932ab0193011 explicitly approved exactly the four artifacts identified in approved-artifact-pins.json, frozen before status edits. Approval covers only test isolation correction and specified genuine/hermetic verification. Preserve genuine source/package decoding and fail-fast invalid-fixture checks. No production change, weakened gate, ambient fallback, skip, timeout/profile change, PR approval/CODEOWNER acceptance, merge or deployment authorization. Publish only after stipulated checks, without force/readiness change. Do not retry denied PR-description update or post comments.
