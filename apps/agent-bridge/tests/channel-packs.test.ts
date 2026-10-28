@@ -26,8 +26,8 @@ import {
 import {
   removeChannelPackAdditions,
   restoreChannelPackRaw,
-} from "./fixtures/channel-packs-projection";
-import { restoreShortPlanningOwnershipRaw } from "./fixtures/short-candidates-projection";
+  restoreShortPlanningOwnershipRaw,
+} from "./fixtures/durable-main47-compat";
 
 const stream = async function* (value: string | Uint8Array) {
   yield await Promise.resolve(

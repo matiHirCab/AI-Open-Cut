@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "predecessorCommit": "b3173e7ff8eb8f80aba0a189c71d1aa21d956618",
+  "incomingMain": "756b7b39ce0e2b1d5fcc65291084838da5331517",
+  "publishedDurableHead": "d6ef4ed086d5390db7b3cf536637a9fb044cf66f",
+  "originalOwnershipBytes": 88028,
+  "originalOwnershipSha256": "5febc40dd7b61404226d263058fe628b27dd1e72297f0d3f8aead30c4bb4f4fe",
+  "originalMcpSha256": "5148b0c3374400a76ce87c1245d29b6e13fa4d431b7f800bf02ec3be08b8edbd",
+  "inverseOrders": [
+    [
+      "durable",
+      "shortPlanning"
+    ],
+    [
+      "shortPlanning",
+      "durable"
+    ]
+  ],
+  "representations": [
+    "canonicalPretty",
+    "canonicalCompact"
+  ],
+  "negativeControls": [
+    "missingDurableCategory",
+    "narrowedDurableConsumers",
+    "missingShortPlanningCategory",
+    "narrowedShortPlanningConsumers",
+    "missingDurableCallback",
+    "maskedDurableCallback",
+    "missingShortPlanningCallback",
+    "maskedShortPlanningCallback",
+    "unrelatedRootProperty",
+    "unrelatedHistoricalCategory",
+    "unrelatedNumericLexeme"
+  ],
+  "preserve": [
+    "bothRuntimeTrees",
+    "bothOriginalRawCaptures",
+    "allHistoricalPins",
+    "allExistingNegativeMutations",
+    "peerCategoryAfterSingleInverse",
+    "sourceAndNativeOwnership"
+  ],
+  "compactOwnershipBytes": 72618,
+  "compactOwnershipSha256": "83bc962dbf3bd509adc10eba9bbb628b36be9a7d652ac582f09a2855e0b8fb5d",
+  "representationOracles": {
+    "canonicalPretty": "original frozen b317 raw bytes including final newline",
+    "canonicalCompact": "independently frozen JSON.stringify(JSON.parse(original frozen b317 raw)); no final newline"
+  }
+}

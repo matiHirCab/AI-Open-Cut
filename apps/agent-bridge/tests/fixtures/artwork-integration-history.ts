@@ -3,6 +3,7 @@ import artwork from "../../../../contracts/artwork-preparation-v1.json";
 import channel from "../../../../contracts/channel-style-packs-v1.json";
 import narration from "../../../../contracts/narration-blocks-v1.json";
 import historical from "./artwork-additions.json";
+import { restoreDurableIntegrationRaw } from "./artwork-durable-projection";
 import additions from "./narration-blocks-mcp-additions.json";
 
 type Document = Record<string, unknown>;
@@ -36,7 +37,8 @@ const removeNarrationMcp = (result: Document): void => {
 };
 
 /** Reconstruct the independently pinned AF1-only branch, retaining its artwork. */
-export const restoreArtworkBranchRaw = (input: string): string => {
+export const restoreArtworkBranchRaw = (current: string): string => {
+  const input = restoreDurableIntegrationRaw(current);
   const result = JSON.parse(input) as Document;
   let raw = input;
   if (result.projectSchemaVersion === 48) {

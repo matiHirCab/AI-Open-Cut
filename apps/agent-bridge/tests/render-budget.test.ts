@@ -6,6 +6,7 @@ import { errorBody } from "../src/headless";
 import { BridgeError, eventSchema } from "../src/headless-events";
 import { RENDER_BUDGETS, renderBudgetSchema } from "../src/render-budget";
 import { publicErrorSchema } from "../src/schemas";
+import { removeDurableMcpAdditions } from "./fixtures/durable-production-projection";
 import { restoreRenderBudgetGraphicRaw } from "./fixtures/render-budget-graphic-projection";
 import pins from "./fixtures/render-budget-predecessor-pins.json";
 import {
@@ -91,7 +92,7 @@ it("rejects all missing budget fields with a retained definition and preserves h
       "utf8"
     )
   );
-  const incomplete = structuredClone(source);
+  const incomplete = removeDurableMcpAdditions(source);
   let removed = 0;
   const walk = (value: unknown) => {
     if (!value || typeof value !== "object") {

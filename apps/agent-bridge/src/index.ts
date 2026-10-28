@@ -9,6 +9,12 @@ import { EPHEMERAL_JOBS_CAPABILITY, JobRuntimeGuard } from "./job-runtime";
 import { JobRegistry } from "./jobs";
 import { JsonLineLogger, type Logger } from "./logger";
 import { previewDisposer } from "./preview-disposal";
+import {
+  durableCapabilities,
+  durableHttpHealth,
+} from "./production-requests/contract";
+import { DurableProductionService } from "./production-requests/service";
+import { DurableProductionStore } from "./production-requests/store";
 import { headlessStatusSchema, type statusSchema } from "./schemas";
 import { createServer } from "./server";
 import { SpeechApplicationService, type SpeechSynthesizer } from "./speech";
@@ -149,6 +155,7 @@ const run = async () => {
         capabilities: [
           ...status.capabilities,
           EPHEMERAL_JOBS_CAPABILITY,
+          ...durableCapabilities(config.durableProductionRequests),
           ...(speechSubsystem.ready ? ["tts"] : []),
           ...(transcriptionSubsystem.ready
             ? ["transcription", "captions"]
@@ -189,6 +196,15 @@ const run = async () => {
     maxCount: config.jobMaxCount,
     ttlMs: config.jobTtlMs,
   });
+  const production = config.durableProductionRequests
+    ? new DurableProductionService({
+        headless,
+        jobs,
+        store: new DurableProductionStore(config.ttsWorkDirectory, {
+          runtimeGuard: jobRuntime,
+        }),
+      })
+    : undefined;
   const transcription = new TranscriptionApplicationService(
     new FasterWhisperTranscriber(config, logger),
     headless,
@@ -196,47 +212,65 @@ const run = async () => {
   );
   const handle =
     config.transport === "http"
-      ? serveHttp(speech, transcription, headless, jobs, config, async () => {
-          const [editor, speechState, transcriptionState] =
-            await Promise.allSettled([
-              headless.call({ operation: "status" }, headlessStatusSchema),
-              speech.status(),
-              transcription.status(),
-            ]);
-          return {
-            ready: editor.status === "fulfilled",
-            subsystems: {
-              editor: { ready: editor.status === "fulfilled" },
-              rendering: {
-                ready:
-                  editor.status === "fulfilled" &&
-                  editor.value.subsystems.rendering.ready,
+      ? serveHttp(
+          speech,
+          transcription,
+          headless,
+          jobs,
+          config,
+          async () => {
+            const [editor, speechState, transcriptionState] =
+              await Promise.allSettled([
+                headless.call({ operation: "status" }, headlessStatusSchema),
+                speech.status(),
+                transcription.status(),
+              ]);
+            return durableHttpHealth(config.durableProductionRequests, {
+              ready: editor.status === "fulfilled",
+              subsystems: {
+                editor: { ready: editor.status === "fulfilled" },
+                rendering: {
+                  ready:
+                    editor.status === "fulfilled" &&
+                    editor.value.subsystems.rendering.ready,
+                },
+                speech: {
+                  ready:
+                    speechState.status === "fulfilled" &&
+                    speechState.value.ready,
+                },
+                transcription: {
+                  ready:
+                    transcriptionState.status === "fulfilled" &&
+                    transcriptionState.value.ready,
+                },
               },
-              speech: {
-                ready:
-                  speechState.status === "fulfilled" && speechState.value.ready,
-              },
-              transcription: {
-                ready:
-                  transcriptionState.status === "fulfilled" &&
-                  transcriptionState.value.ready,
-              },
-            },
-            version:
-              editor.status === "fulfilled" ? editor.value.version : "0.1.0",
-          };
-        })
+              version:
+                editor.status === "fulfilled" ? editor.value.version : "0.1.0",
+            });
+          },
+          production
+        )
       : serveStdio(() =>
-          createServer(speech, headless, jobs, config, transcription)
+          createServer(
+            speech,
+            headless,
+            jobs,
+            config,
+            transcription,
+            production
+          )
         );
   let shutdownPromise: Promise<void> | undefined;
   const shutdown = () => {
     shutdownPromise ??= (async () => {
+      production?.beginClose();
       await jobs.close();
       await headless.close();
       await speech.close();
       await transcription.close();
       await handle.close();
+      await production?.close();
       jobRuntime.release();
     })().catch((error: unknown) => {
       shutdownPromise = undefined;

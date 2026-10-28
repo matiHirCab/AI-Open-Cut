@@ -27,6 +27,15 @@ export interface JobTaskContext {
   signal: AbortSignal;
 }
 
+/** Internal task evidence; public job status alone cannot prove native effects. */
+export interface JobSettlement {
+  completion: JobCompletion | undefined;
+  entered: boolean;
+  error: unknown;
+  job: Job;
+}
+export type JobSettlementObserver = (value: JobSettlement) => Promise<void>;
+
 interface JobEntry {
   cancellable: boolean;
   controller: AbortController;
@@ -122,7 +131,8 @@ export class JobRegistry {
     kind: Job["kind"],
     projectId: string,
     revision: number,
-    task: (context: JobTaskContext) => Promise<JobCompletion>
+    task: (context: JobTaskContext) => Promise<JobCompletion>,
+    observe?: JobSettlementObserver
   ) {
     this.#ensureAdmission();
     this.#beforeStart?.();
@@ -145,13 +155,21 @@ export class JobRegistry {
       },
       settled: false,
     };
+    // Observed producers must never throw a response validation error after
+    // admission. Existing callers retain their original synchronous snapshot.
+    const observedSnapshot = observe
+      ? jobSchema.parse({ ...entry.job, status: "running" })
+      : undefined;
     this.#jobs.set(jobId, entry);
     this.#logger.info("job.admitted", {
       jobId,
       operation: kind,
       status: "queued",
     });
-    entry.promise = this.#run(entry, task);
+    entry.promise = this.#run(entry, task, observe);
+    if (observedSnapshot) {
+      return observedSnapshot;
+    }
     return jobSchema.parse(entry.job);
   }
 
@@ -221,17 +239,22 @@ export class JobRegistry {
 
   async #run(
     entry: JobEntry,
-    task: (context: JobTaskContext) => Promise<JobCompletion>
+    task: (context: JobTaskContext) => Promise<JobCompletion>,
+    observe?: JobSettlementObserver
   ) {
-    this.#update(entry, { status: "running" });
-    const startedAt = this.#now();
-    this.#logger.info("job.started", {
-      jobId: entry.job.jobId,
-      operation: entry.job.kind,
-      queueWaitMs: startedAt - entry.job.createdAtMs,
-      status: "running",
-    });
+    let completion: JobCompletion | undefined;
+    let entered = false;
+    let failure: unknown;
+    let startedAt = entry.job.createdAtMs;
     try {
+      this.#update(entry, { status: "running" });
+      startedAt = this.#now();
+      this.#logger.info("job.started", {
+        jobId: entry.job.jobId,
+        operation: entry.job.kind,
+        queueWaitMs: startedAt - entry.job.createdAtMs,
+        status: "running",
+      });
       if (isPreview(entry.job) && this.#disposePreview) {
         const admission = this.#reservePreview(entry);
         if (admission) {
@@ -241,7 +264,8 @@ export class JobRegistry {
       if (entry.controller.signal.aborted) {
         return;
       }
-      const completion = await task({
+      entered = true;
+      completion = await task({
         jobId: entry.job.jobId,
         markNonCancellable: () => {
           entry.cancellable = false;
@@ -249,9 +273,10 @@ export class JobRegistry {
         onProgress: (progress) => this.#progress(entry, progress),
         signal: entry.controller.signal,
       });
-      if (completion.artifact && isPreview(entry.job) && this.#disposePreview) {
+      const { artifact } = completion;
+      if (artifact && isPreview(entry.job) && this.#disposePreview) {
         await this.#serialize(async () => {
-          await this.#retainPreview(entry, completion.artifact);
+          await this.#retainPreview(entry, artifact);
         });
       }
       if (entry.job.status !== "cancelled") {
@@ -268,6 +293,7 @@ export class JobRegistry {
         });
       }
     } catch (error) {
+      failure = error;
       if (entry.job.status === "cancelled" || entry.controller.signal.aborted) {
         this.#finishCancelled(entry);
         return;
@@ -286,6 +312,25 @@ export class JobRegistry {
         status: "failed",
       });
     } finally {
+      if (observe) {
+        try {
+          await observe({
+            completion,
+            entered,
+            error: failure,
+            job: { ...entry.job },
+          });
+        } catch {
+          try {
+            this.#logger.error("job.settlement.failed", {
+              code: "DEPENDENCY_UNAVAILABLE",
+              jobId: entry.job.jobId,
+            });
+          } catch {
+            // Diagnostics cannot prevent releasing an observed settlement.
+          }
+        }
+      }
       entry.previewReserved = false;
       entry.settled = true;
     }

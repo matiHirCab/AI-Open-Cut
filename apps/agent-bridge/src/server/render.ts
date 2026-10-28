@@ -1,10 +1,8 @@
-import { BridgeError } from "../headless";
 import {
-  audioAnalysisResultSchema,
-  jobSchema,
-  projectStateSchema,
-  schemas,
-} from "../schemas";
+  type ProductionIntent,
+  prepareProduction,
+} from "../production-requests/prepare";
+import { audioAnalysisResultSchema, jobSchema, schemas } from "../schemas";
 import {
   DESTRUCTIVE,
   failure,
@@ -18,6 +16,21 @@ export const registerRenderTools = (
   server: Server,
   { headless, jobs }: ServerDependencies
 ) => {
+  const queueProduction = async (intent: ProductionIntent) => {
+    try {
+      const prepared = await prepareProduction(headless, intent);
+      return success(
+        jobs.start(
+          prepared.kind,
+          intent.request.projectId,
+          intent.request.expectedRevision,
+          prepared.request
+        )
+      );
+    } catch (error) {
+      return failure(error);
+    }
+  };
   server.registerTool(
     "audio_analyze_mix",
     {
@@ -68,42 +81,7 @@ export const registerRenderTools = (
       inputSchema: schemas.previewReviewRange,
       outputSchema: jobSchema,
     },
-    async ({
-      projectId,
-      expectedRevision,
-      startMs,
-      endMs,
-      resolution,
-      fps,
-      includeAudio,
-    }) => {
-      try {
-        const state = await headless.call(
-          { operation: "get_state", projectId },
-          projectStateSchema
-        );
-        if (state.project.revision !== expectedRevision) {
-          throw new BridgeError(
-            "REVISION_CONFLICT",
-            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
-          );
-        }
-        return success(
-          jobs.start("preview_range", projectId, expectedRevision, {
-            endMs,
-            expectedRevision,
-            fps,
-            includeAudio,
-            operation: "render_review_range",
-            projectId,
-            resolution,
-            startMs,
-          })
-        );
-      } catch (error) {
-        return failure(error);
-      }
-    }
+    (request) => queueProduction({ kind: "review_range", request })
   );
   server.registerTool(
     "preview_render_frame",
@@ -113,30 +91,7 @@ export const registerRenderTools = (
       inputSchema: schemas.previewRenderFrame,
       outputSchema: jobSchema,
     },
-    async ({ projectId, expectedRevision, timeMs }) => {
-      try {
-        const state = await headless.call(
-          { operation: "get_state", projectId },
-          projectStateSchema
-        );
-        if (state.project.revision !== expectedRevision) {
-          throw new BridgeError(
-            "REVISION_CONFLICT",
-            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
-          );
-        }
-        return success(
-          jobs.start("preview", projectId, expectedRevision, {
-            expectedRevision,
-            operation: "render_preview",
-            projectId,
-            timeMs,
-          })
-        );
-      } catch (error) {
-        return failure(error);
-      }
-    }
+    (request) => queueProduction({ kind: "preview_frame", request })
   );
 
   server.registerTool(
@@ -148,45 +103,7 @@ export const registerRenderTools = (
       inputSchema: schemas.projectExportVideo,
       outputSchema: jobSchema,
     },
-    async ({
-      projectId,
-      expectedRevision,
-      relativePath,
-      resolution,
-      overwrite,
-    }) => {
-      try {
-        const state = await headless.call(
-          { operation: "get_state", projectId },
-          projectStateSchema
-        );
-        if (state.project.revision !== expectedRevision) {
-          throw new BridgeError(
-            "REVISION_CONFLICT",
-            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
-          );
-        }
-        let dimensions = { height: 720, width: 1280 };
-        if (resolution === "project") {
-          dimensions = state.project.settings;
-        } else if (resolution === "1080p") {
-          dimensions = { height: 1080, width: 1920 };
-        }
-        return success(
-          jobs.start("export", projectId, expectedRevision, {
-            expectedRevision,
-            height: dimensions.height,
-            operation: "export_video",
-            overwrite,
-            projectId,
-            relativePath,
-            width: dimensions.width,
-          })
-        );
-      } catch (error) {
-        return failure(error);
-      }
-    }
+    (request) => queueProduction({ kind: "export_video", request })
   );
 
   server.registerTool(
@@ -198,42 +115,6 @@ export const registerRenderTools = (
       inputSchema: schemas.previewRenderRange,
       outputSchema: jobSchema,
     },
-    async ({
-      projectId,
-      expectedRevision,
-      startMs,
-      endMs,
-      resolution,
-      fps,
-      includeAudio,
-    }) => {
-      try {
-        const state = await headless.call(
-          { operation: "get_state", projectId },
-          projectStateSchema
-        );
-        if (state.project.revision !== expectedRevision) {
-          throw new BridgeError(
-            "REVISION_CONFLICT",
-            `Expected revision ${expectedRevision}, current revision is ${state.project.revision}`
-          );
-        }
-        return success(
-          jobs.start("preview_range", projectId, expectedRevision, {
-            endMs,
-            expectedRevision,
-            fps,
-            height: resolution.height,
-            includeAudio,
-            operation: "render_preview_range",
-            projectId,
-            startMs,
-            width: resolution.width,
-          })
-        );
-      } catch (error) {
-        return failure(error);
-      }
-    }
+    (request) => queueProduction({ kind: "preview_range", request })
   );
 };

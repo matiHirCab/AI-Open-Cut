@@ -1,0 +1,883 @@
+{
+  "status": "DRAFT independent planning oracles; no live validators used; not implementation approval",
+  "version": 1,
+  "constants": {
+    "maxRecords": 64,
+    "maxIntentBytes": 4096,
+    "maxRecordBytes": 8192,
+    "maxCatalogBytes": 1048576,
+    "maxOwnedMetadataBytes": 2097188,
+    "retentionMs": 604800000
+  },
+  "input": {
+    "version": 1,
+    "requestId": "00000000-0000-4000-8000-000000000001",
+    "intent": {
+      "kind": "preview_frame",
+      "request": {
+        "projectId": "project-original",
+        "expectedRevision": 4,
+        "timeMs": 250
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "initial queued admission",
+      "expected": {
+        "created": true,
+        "producerCalls": 0,
+        "record": {
+          "version": 1,
+          "requestId": "00000000-0000-4000-8000-000000000001",
+          "intent": {
+            "kind": "preview_frame",
+            "request": {
+              "projectId": "project-original",
+              "expectedRevision": 4,
+              "timeMs": 250
+            }
+          },
+          "createdAtMs": 1000,
+          "updatedAtMs": 1000,
+          "expiresAtMs": 604801000,
+          "confirmedState": "queued",
+          "state": "queued",
+          "uncertainty": null,
+          "outcome": null
+        }
+      }
+    },
+    {
+      "name": "canonical duplicate admission",
+      "inputChange": "reorder object keys only",
+      "expected": {
+        "created": false,
+        "producerCalls": 0,
+        "record": {
+          "version": 1,
+          "requestId": "00000000-0000-4000-8000-000000000001",
+          "intent": {
+            "kind": "preview_frame",
+            "request": {
+              "projectId": "project-original",
+              "expectedRevision": 4,
+              "timeMs": 250
+            }
+          },
+          "createdAtMs": 1000,
+          "updatedAtMs": 1000,
+          "expiresAtMs": 604801000,
+          "confirmedState": "queued",
+          "state": "queued",
+          "uncertainty": null,
+          "outcome": null
+        }
+      }
+    },
+    {
+      "name": "conflicting retained identity",
+      "inputChange": {
+        "intent.request.timeMs": 251
+      },
+      "expected": {
+        "errorCode": "VALIDATION_FAILED",
+        "producerCalls": 0,
+        "unchangedStoredRecord": true
+      }
+    },
+    {
+      "name": "explicit start and concurrent identical start",
+      "clockMs": 1100,
+      "expected": {
+        "producerCalls": 1,
+        "state": "running",
+        "confirmedState": "running",
+        "updatedAtMs": 1100,
+        "uncertainty": null,
+        "jobHandle": "same live process-only handle"
+      }
+    },
+    {
+      "name": "known native PNG before local retention failure",
+      "clockMs": 1200,
+      "nativeResult": {
+        "format": "png",
+        "sizeBytes": 123
+      },
+      "localJobStatus": "failed",
+      "expected": {
+        "state": "completed",
+        "confirmedState": "completed",
+        "outcome": {
+          "kind": "rendered",
+          "format": "png",
+          "sizeBytes": 123
+        },
+        "persistedOpaqueHandles": 0
+      }
+    },
+    {
+      "name": "restart queued",
+      "expected": {
+        "producerCalls": 0,
+        "state": "queued",
+        "confirmedState": "queued",
+        "uncertainty": null,
+        "oldJobAdoptions": 0
+      }
+    },
+    {
+      "name": "restart running",
+      "expected": {
+        "producerCalls": 0,
+        "state": "uncertain",
+        "confirmedState": "running",
+        "uncertainty": "previous_runtime",
+        "oldJobAdoptions": 0
+      }
+    },
+    {
+      "name": "lost terminal confirmation",
+      "nativeResult": {
+        "format": "png",
+        "sizeBytes": 123
+      },
+      "safeExactReadback": false,
+      "expected": {
+        "state": "uncertain",
+        "confirmedState": "running",
+        "uncertainty": "metadata_unconfirmed",
+        "outcome": null,
+        "newProducers": 0,
+        "guardsRetained": true
+      }
+    },
+    {
+      "name": "terminal rename acknowledgement loss with exact whole readback",
+      "safeExactReadback": true,
+      "expected": {
+        "state": "completed",
+        "confirmedState": "completed",
+        "uncertainty": null,
+        "producerReplays": 0
+      }
+    },
+    {
+      "name": "same-record-only readback is insufficient",
+      "safeRecordMatch": true,
+      "safeWholeCatalogMatch": false,
+      "expected": {
+        "state": "uncertain",
+        "uncertainty": "metadata_unconfirmed",
+        "guardsRetained": true
+      }
+    },
+    {
+      "name": "confirmed native error",
+      "error": {
+        "origin": "validated core terminal response",
+        "code": "REVISION_CONFLICT",
+        "retryable": true
+      },
+      "expected": {
+        "state": "failed",
+        "outcome": {
+          "kind": "error",
+          "code": "REVISION_CONFLICT",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "name": "unconfirmed transport error with same code",
+      "error": {
+        "origin": "local transport",
+        "code": "REVISION_CONFLICT",
+        "retryable": true
+      },
+      "expected": {
+        "state": "uncertain",
+        "uncertainty": "dispatch_unconfirmed",
+        "outcome": null
+      }
+    },
+    {
+      "name": "pre-entry immediate cancellation",
+      "taskEntered": false,
+      "expected": {
+        "state": "cancelled",
+        "outcome": {
+          "kind": "cancelled"
+        },
+        "producerCalls": 0
+      }
+    },
+    {
+      "name": "post-entry signal abort without core confirmation",
+      "taskEntered": true,
+      "expected": {
+        "state": "uncertain",
+        "uncertainty": "dispatch_unconfirmed",
+        "outcome": null
+      }
+    },
+    {
+      "name": "exact retention boundary for inactive queued",
+      "clockMs": 604801000,
+      "expected": {
+        "get": null,
+        "expiredCount": 1,
+        "absenceMeaning": "unknown",
+        "producerCalls": 0
+      }
+    },
+    {
+      "name": "active producer remains charged past retention",
+      "clockMs": 604801001,
+      "liveOwnedProducer": true,
+      "expected": {
+        "recordCharged": true,
+        "evictedForCapacity": false
+      }
+    },
+    {
+      "name": "clock rollback",
+      "clockMs": 900,
+      "expected": {
+        "expiredCount": 0,
+        "nextUpdatedAtMsAtLeast": 1000
+      }
+    },
+    {
+      "name": "unsafe or future catalog",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "producerCalls": 0,
+        "catalogRewrites": 0
+      }
+    },
+    {
+      "name": "first safe empty store read",
+      "expected": {
+        "requests": [],
+        "storage": {
+          "readable": true,
+          "writable": false,
+          "reason": "not_initialized"
+        },
+        "absenceMeaning": "unknown",
+        "filesystemCreates": 0
+      }
+    },
+    {
+      "name": "missing catalog plus predecessor stage",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "producerCalls": 0,
+        "filesystemDeletes": 0
+      }
+    },
+    {
+      "name": "preparation rejects before running claim",
+      "taskEntered": false,
+      "expected": {
+        "state": "failed",
+        "producerCalls": 0,
+        "storedRunningClaims": 0
+      }
+    },
+    {
+      "name": "startTask rejects before entering wrapper",
+      "taskEntered": false,
+      "expected": {
+        "state": "failed",
+        "producerCalls": 0
+      }
+    },
+    {
+      "name": "wrapper throws after captured native success",
+      "nativeResultCaptured": {
+        "format": "png",
+        "sizeBytes": 123
+      },
+      "expected": {
+        "state": "completed",
+        "outcome": {
+          "kind": "rendered",
+          "format": "png",
+          "sizeBytes": 123
+        }
+      }
+    },
+    {
+      "name": "two producers settle during first terminal debt",
+      "pendingRequestCount": 2,
+      "safeCloseMerge": true,
+      "expected": {
+        "pendingOverlaysBeforeClose": 2,
+        "nativeReplays": 0,
+        "metadataRecoveryTransactions": 1,
+        "retainedConfirmedOutcomes": 2
+      }
+    },
+    {
+      "name": "two producers settle and close merge unconfirmed",
+      "pendingRequestCount": 2,
+      "safeCloseMerge": false,
+      "expected": {
+        "pendingOverlaysAfterClose": 2,
+        "nativeReplays": 0,
+        "metadataRecoveryTransactions": 1,
+        "guardsRetained": true
+      }
+    },
+    {
+      "name": "same valid catalog copied to another configured root",
+      "rootBindingMatches": false,
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "producerCalls": 0,
+        "filesystemDeletes": 0
+      }
+    },
+    {
+      "name": "expired live owned producer remains visible",
+      "liveOwnedProducer": true,
+      "clockMs": 604801001,
+      "expected": {
+        "getIsNull": false,
+        "listed": true,
+        "recordCharged": true,
+        "expiredCount": 0
+      }
+    },
+    {
+      "name": "oversized or invalid UTF8 catalog before JSON parse",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "producerCalls": 0,
+        "parseAttempted": false
+      }
+    },
+    {
+      "name": "identical retained admission after project changed or deleted",
+      "projectExists": false,
+      "expected": {
+        "created": false,
+        "coreReadCalls": 0,
+        "producerCalls": 0,
+        "recordUnchanged": true
+      }
+    },
+    {
+      "name": "conflicting retained admission before core preflight",
+      "projectExists": false,
+      "expected": {
+        "errorCode": "VALIDATION_FAILED",
+        "coreReadCalls": 0,
+        "producerCalls": 0
+      }
+    },
+    {
+      "name": "start retained terminal running or uncertain after project deletion",
+      "projectExists": false,
+      "states": [
+        "completed",
+        "failed",
+        "cancelled",
+        "running",
+        "uncertain"
+      ],
+      "expected": {
+        "recordUnchanged": true,
+        "coreReadCalls": 0,
+        "producerCalls": 0,
+        "writeGuardAcquisitions": 0
+      }
+    },
+    {
+      "name": "current cancellation is pre-entry job cancellation not native JobCancelled",
+      "nativeCoreContractAdds": 0,
+      "expected": {
+        "preEntryState": "cancelled",
+        "postEntryAbortState": "uncertain"
+      }
+    },
+    {
+      "name": "native result has unexpected MIME despite requested format",
+      "expected": {
+        "state": "uncertain",
+        "uncertainty": "dispatch_unconfirmed",
+        "inventedRequestedFormat": false
+      }
+    }
+  ],
+  "faultPoints": [
+    "before_stage_create",
+    "partial_stage_write",
+    "after_stage_fsync",
+    "before_catalog_rename",
+    "after_catalog_rename_before_ack",
+    "whole_catalog_readback_failure",
+    "path_identity_replacement",
+    "terminal_metadata_write_after_native_publication"
+  ],
+  "compatibility": [
+    "disabled configuration performs no durable filesystem operations",
+    "existing job schemas/errors/cancellation/retention retain their meanings",
+    "old tokens and jobs are never persisted or adopted",
+    "existing authentication and private-root isolation remain unchanged"
+  ],
+  "independentCatalogExample": {
+    "configuredCanonicalChild": "/original/configured/private/root/.opencut-durable-production-v1",
+    "catalog": {
+      "version": 1,
+      "storeId": "00000000-0000-4000-8000-000000000002",
+      "rootBinding": "a3d9663e56e31bb5bed03cd664af833ebfb2370a01904b104b15c82c5896d46d",
+      "generation": 1,
+      "records": [
+        {
+          "requestId": "00000000-0000-4000-8000-000000000001",
+          "intent": {
+            "kind": "preview_frame",
+            "request": {
+              "projectId": "project-original",
+              "expectedRevision": 4,
+              "timeMs": 250
+            }
+          },
+          "intentSha256": "715af85e0f2695b4b2eae3d872a250ee5eff83e0e1673831c4c19271489ce2b4",
+          "createdAtMs": 1000,
+          "updatedAtMs": 1000,
+          "state": "queued",
+          "runtimeId": null,
+          "outcome": null
+        }
+      ]
+    },
+    "canonicalBytes": "{\"generation\":1,\"records\":[{\"createdAtMs\":1000,\"intent\":{\"kind\":\"preview_frame\",\"request\":{\"expectedRevision\":4,\"projectId\":\"project-original\",\"timeMs\":250}},\"intentSha256\":\"715af85e0f2695b4b2eae3d872a250ee5eff83e0e1673831c4c19271489ce2b4\",\"outcome\":null,\"requestId\":\"00000000-0000-4000-8000-000000000001\",\"runtimeId\":null,\"state\":\"queued\",\"updatedAtMs\":1000}],\"rootBinding\":\"a3d9663e56e31bb5bed03cd664af833ebfb2370a01904b104b15c82c5896d46d\",\"storeId\":\"00000000-0000-4000-8000-000000000002\",\"version\":1}",
+    "canonicalSha256": "d48c67cf8c25e7e3d1535a048802fd4194d0f120eb9ac85c03c6996204552bb3"
+  },
+  "completePublicSnapshots": {
+    "queued": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1000,
+      "expiresAtMs": 604801000,
+      "confirmedState": "queued",
+      "state": "queued",
+      "uncertainty": null,
+      "outcome": null
+    },
+    "running": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1100,
+      "expiresAtMs": 604801000,
+      "confirmedState": "running",
+      "state": "running",
+      "uncertainty": null,
+      "outcome": null
+    },
+    "completed": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1200,
+      "expiresAtMs": 604801000,
+      "confirmedState": "completed",
+      "state": "completed",
+      "uncertainty": null,
+      "outcome": {
+        "kind": "rendered",
+        "format": "png",
+        "sizeBytes": 123
+      }
+    },
+    "failed": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1200,
+      "expiresAtMs": 604801000,
+      "confirmedState": "failed",
+      "state": "failed",
+      "uncertainty": null,
+      "outcome": {
+        "kind": "error",
+        "code": "REVISION_CONFLICT",
+        "retryable": true
+      }
+    },
+    "cancelled_before_entry": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1200,
+      "expiresAtMs": 604801000,
+      "confirmedState": "cancelled",
+      "state": "cancelled",
+      "uncertainty": null,
+      "outcome": {
+        "kind": "cancelled"
+      }
+    },
+    "predecessor_running_uncertain": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1100,
+      "expiresAtMs": 604801000,
+      "confirmedState": "running",
+      "state": "uncertain",
+      "uncertainty": "previous_runtime",
+      "outcome": null
+    },
+    "unconfirmed_terminal": {
+      "version": 1,
+      "requestId": "00000000-0000-4000-8000-000000000001",
+      "intent": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "createdAtMs": 1000,
+      "updatedAtMs": 1100,
+      "expiresAtMs": 604801000,
+      "confirmedState": "running",
+      "state": "uncertain",
+      "uncertainty": "metadata_unconfirmed",
+      "outcome": null
+    }
+  },
+  "acknowledgementDebtMatrix": [
+    {
+      "class": "new_admission",
+      "readback": "exact_base",
+      "expected": {
+        "request": null,
+        "storageReason": "metadata_unconfirmed",
+        "closeInsertsNewIdentity": false,
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "new_admission",
+      "readback": "exact_successor",
+      "expected": {
+        "state": "queued",
+        "confirmedState": "queued",
+        "closePreservesCommittedIdentity": true,
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "new_admission",
+      "readback": "unreadable_or_other",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "guardsRetained": true,
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "start_claim_no_entry",
+      "readback": "exact_base",
+      "expected": {
+        "state": "queued",
+        "closeState": "queued",
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "start_claim_no_entry",
+      "readback": "exact_running_successor",
+      "expected": {
+        "state": "uncertain",
+        "confirmedState": "running",
+        "uncertainty": "metadata_unconfirmed",
+        "closeState": "failed",
+        "closeErrorCode": "DEPENDENCY_UNAVAILABLE",
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "start_claim_no_entry",
+      "readback": "unreadable_or_other",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "guardsRetained": true,
+        "nativeDispatches": 0
+      }
+    },
+    {
+      "class": "terminal",
+      "readback": "exact_base",
+      "expected": {
+        "state": "uncertain",
+        "uncertainty": "metadata_unconfirmed",
+        "closeCanMergeKnownOutcome": true,
+        "nativeReplays": 0
+      }
+    },
+    {
+      "class": "terminal",
+      "readback": "exact_terminal_successor",
+      "expected": {
+        "state": "completed",
+        "confirmedState": "completed",
+        "nativeReplays": 0
+      }
+    },
+    {
+      "class": "terminal",
+      "readback": "unreadable_or_other",
+      "expected": {
+        "errorCode": "DEPENDENCY_UNAVAILABLE",
+        "guardsRetained": true,
+        "nativeReplays": 0
+      }
+    },
+    {
+      "class": "dispatch_without_confirmed_outcome",
+      "readback": "exact_running",
+      "expected": {
+        "state": "uncertain",
+        "closeCanInventTerminal": false,
+        "guardsRetained": true,
+        "nativeReplays": 0
+      }
+    }
+  ],
+  "validIntentNormalization": [
+    {
+      "input": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      },
+      "expected": {
+        "kind": "preview_frame",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "timeMs": 250
+        }
+      }
+    },
+    {
+      "input": {
+        "kind": "preview_range",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "startMs": 0,
+          "endMs": 2000,
+          "resolution": {
+            "width": 320,
+            "height": 180
+          },
+          "fps": 10
+        }
+      },
+      "expected": {
+        "kind": "preview_range",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "startMs": 0,
+          "endMs": 2000,
+          "resolution": {
+            "width": 320,
+            "height": 180
+          },
+          "fps": 10,
+          "includeAudio": false
+        }
+      }
+    },
+    {
+      "input": {
+        "kind": "review_range",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "startMs": 0,
+          "endMs": 2000
+        }
+      },
+      "expected": {
+        "kind": "review_range",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "startMs": 0,
+          "endMs": 2000,
+          "resolution": "project",
+          "includeAudio": true
+        }
+      }
+    },
+    {
+      "input": {
+        "kind": "export_video",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "format": "mp4",
+          "resolution": "720p",
+          "relativePath": "approved-original.mp4"
+        }
+      },
+      "expected": {
+        "kind": "export_video",
+        "request": {
+          "projectId": "project-original",
+          "expectedRevision": 4,
+          "format": "mp4",
+          "resolution": "720p",
+          "relativePath": "approved-original.mp4",
+          "overwrite": false
+        }
+      }
+    }
+  ],
+  "httpHealthExamples": {
+    "disabled": {
+      "ready": true,
+      "subsystems": {
+        "editor": {
+          "ready": true
+        },
+        "rendering": {
+          "ready": false
+        },
+        "speech": {
+          "ready": false
+        },
+        "transcription": {
+          "ready": false
+        }
+      },
+      "version": "0.1.0"
+    },
+    "enabled": {
+      "ready": true,
+      "subsystems": {
+        "editor": {
+          "ready": true
+        },
+        "rendering": {
+          "ready": false
+        },
+        "speech": {
+          "ready": false
+        },
+        "transcription": {
+          "ready": false
+        }
+      },
+      "version": "0.1.0",
+      "capabilities": [
+        "durable_requests_v1"
+      ]
+    }
+  },
+  "boundedErrorExamples": [
+    {
+      "stage": "post_entry",
+      "code": "UnknownDurableCoreError",
+      "retryable": false,
+      "expectedState": "uncertain",
+      "expectedUncertainty": "dispatch_unconfirmed",
+      "pendingOutcomeBytes": 0
+    },
+    {
+      "stage": "post_entry",
+      "code": "REVISION_CONFLICT",
+      "retryable": false,
+      "expectedState": "uncertain",
+      "expectedUncertainty": "dispatch_unconfirmed",
+      "pendingOutcomeBytes": 0
+    },
+    {
+      "stage": "pre_entry",
+      "code": "UnknownDurableCoreError",
+      "retryable": false,
+      "expectedState": "failed",
+      "expectedOutcome": {
+        "kind": "error",
+        "code": "INTERNAL_ERROR",
+        "retryable": false
+      }
+    },
+    {
+      "stage": "pre_entry",
+      "code": "REVISION_CONFLICT",
+      "retryable": false,
+      "expectedState": "failed",
+      "expectedOutcome": {
+        "kind": "error",
+        "code": "INTERNAL_ERROR",
+        "retryable": false
+      }
+    }
+  ]
+}

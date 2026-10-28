@@ -1,0 +1,550 @@
+{
+  "heads": {
+    "artwork": "d70120792511f50f99c363206620211787999638",
+    "main": "b350b5cc85b4a9d31578992fde83f598e4392c68"
+  },
+  "catalogs": {
+    "artwork": {
+      "contracts/advanced-text-layout-v1.json": {
+        "rawSha256": "e04c5db0c2a51959d682a80bb9d14552b732530440562d28555c8cc438abceb0",
+        "compactSha256": "584f6b404088a1f3a5bca062d8b79a959a040e22c765722773dd27702ca9ee54"
+      },
+      "contracts/animation-channels-v1.json": {
+        "rawSha256": "1411bf3822392b44790f44586eef639783a0868b3d58c5cf1da759114318c976",
+        "compactSha256": "fb020e67ec752aa5d26674200fe1b16a5efb9644cfe2b1a577cb7dc52d025800"
+      },
+      "contracts/animation-presets-v1.json": {
+        "rawSha256": "06e65d35e79b42693d2b5b653d11742ef102c80ba0c5da4b2471a1e2de9eddcb",
+        "compactSha256": "4e6eb0f8487a91adf4f7914e399d63ffb74a2ea6c22e68f542c18e09ad5f6038"
+      },
+      "contracts/artifact-delivery-v2.json": {
+        "rawSha256": "acaf43fe6653c8accfb2ead2272b43d52632c48d51a05f101ba71292f3611736",
+        "compactSha256": "5730fa6bd2fc371a157869d55484a37817fadd4049298e08432da1e645fbd5a4"
+      },
+      "contracts/artwork-preparation-v1.json": {
+        "rawSha256": "8b0c6103ed8a6ac06be2c97d4bceab2c99c12e0be7b2885746542e601a0c3eb1",
+        "compactSha256": "ed1fa0d4b60ed2c8d397f430b0b6edce1159ee1c2cd75e5c3e4ce2a21b054e4b"
+      },
+      "contracts/audio-analysis-v1.json": {
+        "rawSha256": "c1c516ae01b29bf53b97e45d0ea2ca6ce78488ec6c21834b392c3a4f841bb9aa",
+        "compactSha256": "25e3c52ae0c1d4ae2fc33989ee7349d73e02741cf820ec0512b82dbbb7aee89a"
+      },
+      "contracts/audio-bus-dsp-v1.json": {
+        "rawSha256": "7024773854b883b8d421796a9aa274b201fab0cfe4bfb03fd06e2612c43ee6a6",
+        "compactSha256": "b37de50a39294c7f78c3ba12a9e8c321a35a1b92ff47540fb7e4190e2e338b92"
+      },
+      "contracts/audio-bus-ducking-v1.json": {
+        "rawSha256": "97ff254d14b34d324a0d57e13299cf8f6d8e31817cd36336fc3ce378bfef3eb8",
+        "compactSha256": "baa0637969ab9c5c5054cc633318c3843bb7b7d17fd14c785482198eceea3174"
+      },
+      "contracts/audio-buses-v1.json": {
+        "rawSha256": "0ec0819b6044de308e6cda3d359bb0ef0fad2b3f1958b909f34063831c4e6a48",
+        "compactSha256": "e1c397caab9e3342936e2e509e89772d9d6ba4f917c9e4c0c3a3b3acc1fb0c08"
+      },
+      "contracts/blend-modes-v1.json": {
+        "rawSha256": "55e0ecd219bff427a7194ce2ad3b41d52cbdb07c404a61ddb3a3cfae05c9c057",
+        "compactSha256": "24ff929662fe06d0c35719da338193f7fb5678002d5f3906a765ab37f6ea7fa8"
+      },
+      "contracts/channel-style-packs-v1.json": {
+        "rawSha256": "5c897c0c528884ad96da173fe56c32f7128603a5a656b71b099c06abe34f9ec9",
+        "compactSha256": "bbc8ed8c6cb3840e0606e3c3466b82ed58adee5a671522e0073cdb7d76b8a7fd"
+      },
+      "contracts/complete-reference-scene-v1.json": {
+        "rawSha256": "41deb91f35ccbbf379e7d3ffd0e4d402077fbaa37bee3a9253363fe8221e9cc0",
+        "compactSha256": "5696ca72976fa805d0d5ebaca75f5259dce69cbb1ab72221310208037f201750"
+      },
+      "contracts/component-definitions-v1.json": {
+        "rawSha256": "7a60523096fdaa1c2ee860d59d079330e2dd0b5735838cf1169eb7e39f4387f3",
+        "compactSha256": "81243a9c8f897b6120afff4e83da8d96beae256ae2b9c644da4692002a4c85ce"
+      },
+      "contracts/component-evaluation-v1.json": {
+        "rawSha256": "2f5e763e8b9d339958f485feaeb752d98e98916b54b87f290b0f5e34178735c8",
+        "compactSha256": "af266fbad5d2983422a4b674636fc87c85adadd9c229e4c24843374a1f321a1c"
+      },
+      "contracts/component-lifecycle-v1.json": {
+        "rawSha256": "1b71ed011a62f31632294db04c93ffc9a59a889168f5e480dbffb14ef6c4a08b",
+        "compactSha256": "f25084da670f11b3ce3b328820a77bb803195ecf7a4d6c860ec7c7b4ece3023f"
+      },
+      "contracts/contract-ownership-v1.json": {
+        "rawSha256": "7bdf65bb37ac27905ded4eba6d8bd8f8e452de1b607565d706235be5fe79d8e4",
+        "compactSha256": "773c7959eeb8a523044bc74bb5a7fbbacff0b32b7efdfed0dabbcc65a961e6a9"
+      },
+      "contracts/desktop-compositing-controls-v1.json": {
+        "rawSha256": "74d3ad57e99edcf40afb7c6e6d03dc80d052a46534505929f3eaa7690c4b6574",
+        "compactSha256": "d8668d97c68c8b4e875d0f2df5f263aa883a5c9c5d631304f7adc4166b7b11e9"
+      },
+      "contracts/error-codes-v1.json": {
+        "rawSha256": "28eb9e370cdcd3ebc074b1a26ac2df686c03d5dd2550a5ef5fa220fe32e1937b",
+        "compactSha256": "367a8b5fe70f7304d47e06eca0b43e2ae7958c2e288964d8e11c79965ef11713"
+      },
+      "contracts/extended-visual-animation-v1.json": {
+        "rawSha256": "4bf38d15a4adbb4f150aa79be8b49c0e32ad61d7e3626548f5f2d0488e9bfb86",
+        "compactSha256": "ad33b43bbe7b04e375a82bedf022c1477a32f681c1fe959a9b26dbe97c5fdb55"
+      },
+      "contracts/ffmpeg-spawn-diagnostics-v1.json": {
+        "rawSha256": "5f98de9ee0f13a8f342ca471207022f47a0fb1dd65c9d2901107cefabfb9d75d",
+        "compactSha256": "261d98f46c7ab962c58fc24d8c8c46329e6e8a223026116ba11aba0b1a82e123"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-audio-provenance.json": {
+        "rawSha256": "4c820c658261701b24bab9c6b68bcbd3143fe69e9428eb04b5d0c5be5d88d4de",
+        "compactSha256": "b27b2931285d62f07880d9a113edc7a60f839cb33fb59e1c185224fd06955d97"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json": {
+        "rawSha256": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+        "compactSha256": "71bfa2bc1cb4691e46ff89b6502aa15bf44bc468affeff265dd6e4e61355792a"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json": {
+        "rawSha256": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+        "compactSha256": "a6e2ba55b3292f7c0e75bfb8e1329e48f4986222065eef7f6f44ad5789c28b5a"
+      },
+      "contracts/group-compositing-v1.json": {
+        "rawSha256": "45245715bfdd97e8c12ae2c8744272494ecc32e38263aeece2c0a56f80bbb5f7",
+        "compactSha256": "d322e272397879fa78f62c5af6c5a607f61b3df680c6ce4ac6cc5e5aa92f3d50"
+      },
+      "contracts/group-parent-v1.json": {
+        "rawSha256": "11d5d56646ed6aef3f44dba653d6161902485453b6eac596c985a2eaf11708b2",
+        "compactSha256": "aec1d50fad31fce24e08dbcf7d5a3287113913d96f9c2551d53e0b5dd9f74f8b"
+      },
+      "contracts/headless-protocol-v1.json": {
+        "rawSha256": "0f20106a05355145b048d07ef188fbc94919eac26b5a8bf48376e80c816cd3c0",
+        "compactSha256": "2938f8107ead8dd432efda3b374ef6041c1289f79c2a3b663039ca6d82904e30"
+      },
+      "contracts/inherited-animation-timing-v1.json": {
+        "rawSha256": "5482d3ef5e6e622c01c97ee0032c20887341ba9e5568241ae8fc8c85845ae4f7",
+        "compactSha256": "c39d1950859c82e133908345c79d71eb8f61749acbd17975aecfabda00a1888f"
+      },
+      "contracts/initial-motion-preset-pack-v1.json": {
+        "rawSha256": "939374da0fd873c3a62c8b8a7da2f29f21b26edcb8789235768bc3dcab7a5776",
+        "compactSha256": "5301acdb6eb03f45d3cb72c33c357fe83b02dc69f8ddf4500484109899cb9a7d"
+      },
+      "contracts/job-restart-v1.json": {
+        "rawSha256": "000e74d5b788dd707bda1e18cb36df60798ee7f2e4b412c6b8a0510b9d9d7b65",
+        "compactSha256": "30b8db1f5be13459d899d77b7433ce38648a91e552d01b8e20c7e03c3a4de8f3"
+      },
+      "contracts/known-text-alignment-v1.json": {
+        "rawSha256": "b73a351cbe8794cd7d6338083e55667865f78eef520545c4147784134a5c6664",
+        "compactSha256": "4e6a8cf5295ac9529fa51e33fd692faadbb591176d1962ec7a4bf461d3a0dc0b"
+      },
+      "contracts/mask-models-v1.json": {
+        "rawSha256": "326c32bfbc4acef3183306d9b135301bcafcf40491c4b9899c23259bc99f15ca",
+        "compactSha256": "8a2a130e36dbfb341736a77233b79091cbd2d2ec45fb6b73502364e1f84997d9"
+      },
+      "contracts/mask-rendering-v1.json": {
+        "rawSha256": "acb591f5eb0c8e65abfe6cd1e5454fa9478481f8cb6f905a224aedb668658ced",
+        "compactSha256": "8cc318c4875d2c0b38ca3b363f2f10757c3c391665e5a31bc27766ef82c58666"
+      },
+      "contracts/masked-hero-reveal-v1.json": {
+        "rawSha256": "e4cddbc38d16826afd89a3959ba7926b922a981577fbbf9e24455d8505c89176",
+        "compactSha256": "2b67cc0e7d7e5316caba21a5c6aeea21960b829d2aa82c936305e8f940a0d1d8"
+      },
+      "contracts/master-normalization-v1.json": {
+        "rawSha256": "8c674653d1ff1831fa54123ec26bee45235fdda1433e6f7adba02631e589ccdb",
+        "compactSha256": "db29b39e55fbe8bdc842543d4596b122dac642703be82c2caa5de73da85a6ae6"
+      },
+      "contracts/mcp-surface-v1.json": {
+        "rawSha256": "cc8c394e37ece58e478be4a2fb495b3f5e8d87f83fc98f6535e0f4d1b66bb267",
+        "compactSha256": "21313fd8ee46e82b554e23200efd3f3decdcf2c71f05cb896d5deb659f8ca73b",
+        "expandedSha256": "37b2c114a64c2e5a3e72fe46ec2d8bf5438510f5e565601c5fa3c8c517ebf31d"
+      },
+      "contracts/motion-blur-sampling-v1.json": {
+        "rawSha256": "e46987b9bee5fcaa5703da8a3ec26fdb733cde70782f2940aa609d42f5834f15",
+        "compactSha256": "f1ca3e412bb72e380152a00ea33c3992f40fa76d790606bc27a2c468fc63e6a5"
+      },
+      "contracts/motion-graphics-v1.json": {
+        "rawSha256": "0bddec4de56324507b8142645e067dc38aa175cd715652c20a1ba93553de712e",
+        "compactSha256": "5c87717e02e659cc99c4b9a05ec62b66caaf6cf8a6489e81e2cdaaa8831ead77"
+      },
+      "contracts/narration-blocks-v1.json": {
+        "rawSha256": "e160801417958f90ec4f743a9d091ecb5efd045b0da60828accccb1917ed1db7",
+        "compactSha256": "0e190d17c34f3ca0cc6a2742c29e2ed718beee2b6dd793afa49999d350929d9f"
+      },
+      "contracts/narration-driven-fixture-v1.json": {
+        "rawSha256": "4ebdd0ecdca880ed12393c2239182865920908e6ffee8cc40f83bebc12e51dfd",
+        "compactSha256": "959c2d25702f7e16cd872612395377c58a3e1ca01d808a691f2e1b74720e73bf"
+      },
+      "contracts/narration-profiles-v1.json": {
+        "rawSha256": "fb38327d1e18a60386df088a10c729c511fc522d7354072ce02c9e62c3361ab1",
+        "compactSha256": "eb09a95da7f63bd3977d8b5f298480218c6299cbf6cc0dc76ce423218f282a8f"
+      },
+      "contracts/native-motif-pack-v1.json": {
+        "rawSha256": "d34f72f61b249176d8348181b5acf7cf5092f29e6ce973232d0ce50f209757cf",
+        "compactSha256": "c2a144398b7a63ebb74f66d67b5a86eb828618e480de6f700a4046b8e58833ed"
+      },
+      "contracts/native-role-team-v1.json": {
+        "rawSha256": "46319b20209663bcecc1b3d24014baf1326d0d976f99a6dbece015c21840c0aa",
+        "compactSha256": "2e6b613d5eb21efc30df999ba486f204465f54a6d7c240638f555a12f54f8f91"
+      },
+      "contracts/parameterized-effects-v1.json": {
+        "rawSha256": "c9ca81b31e54eb25bd2b89a1aa64e316e93d6be0fa0e48d355bd661a2511b5fd",
+        "compactSha256": "0d582526a474edd18f5ecb6527f251c277af0eddab5dbca37d5184fcde66212f"
+      },
+      "contracts/preview-review-v1.json": {
+        "rawSha256": "0c7f669cdc7e9747e569a71c2cdce16460c31f404c21234373cb5f0e61d9cd6d",
+        "compactSha256": "2282d54eeb3b74c24e5ef86a46a61a4ba2f1838a53e175f4eada376c3ddca65d"
+      },
+      "contracts/procedural-grids-v1.json": {
+        "rawSha256": "ddf8c805b45526f92c017288c178b87eaa862b9e64fbc1ede5d8e5db721a83ed",
+        "compactSha256": "a24e62f2ab109c175e9b263682d8f9bd49fb0af281dd9b622155ff6380d8de3f"
+      },
+      "contracts/render-budget-diagnostics-v1.json": {
+        "rawSha256": "bf4a8ba1a710f5ddbcf980039fe087527bf477d2a6792e752d57a0894d68d41e",
+        "compactSha256": "bd8f627b2c2fabc1ab129d11f9cdfbb1cd8c38aee3f7f7a33954d54803ad1cb4"
+      },
+      "contracts/render-preparation-progress-v1.json": {
+        "rawSha256": "307fa830db2e4a70ae7b9633f7ea8d53b240e111f32ea3b988dde8e4b7c20f42",
+        "compactSha256": "60a28b7efb88624c12028f8ba4441a34f90b443e00ee3d15ee589b00c3094580"
+      },
+      "contracts/render-worker-v1.json": {
+        "rawSha256": "6ae923842722f7ee961685498e35256698f668f8310a71337d6f74a6f3e99a0b",
+        "compactSha256": "75aa5aebe33240b2ffc4924ca80282a33b34a92006ff053ea11b38b345cf9f21"
+      },
+      "contracts/repeaters-v1.json": {
+        "rawSha256": "9591973d55516fd27c7e6279bcc45ef7ce9d938e38e3c39253bd4ea88504c49e",
+        "compactSha256": "fc214bf4a3326779855576187da39f5b20b07bbe10ac116290d3f96e16045b4a"
+      },
+      "contracts/rich-text-documents-v1.json": {
+        "rawSha256": "2310b48a71c7d7339a867fb7827c6d3dfa25de4019e07442971bad5ebe52d4e7",
+        "compactSha256": "507ae49f8caa9bd85119fb9223ac4eab69f2e208d5e67cb80995f4d340d223d8"
+      },
+      "contracts/semantic-sound-events-v1.json": {
+        "rawSha256": "52ecc36dc8e40af21b19003d43b7a61522d0b8ddb79d47b828ad7097a1e1bc30",
+        "compactSha256": "355df2b0bb73d20665be466f5e31819b7bd733d3fb4d9bcf7560162e0f832d59"
+      },
+      "contracts/shape-items-v1.json": {
+        "rawSha256": "04e97d6e6ef1fe5ee7d8d605e67b105a24b7fa4c238e14f5b241ae3c33b853e3",
+        "compactSha256": "36671d2461545331ac45e9bf88c59d3f7657294bd5613ed6e451d023072e0afb"
+      },
+      "contracts/short-candidate-planning-cli-v1.json": {
+        "rawSha256": "81947523bb03b1adc40b7f0488a22be187811adc577252611e5e25951df79c69",
+        "compactSha256": "78b5f129d5fffd70b8afc76cd0e459dd73208642824839ea09dbade083fe0baa"
+      },
+      "contracts/solid-graphic-color-slots-v1.json": {
+        "rawSha256": "29b74bdd43975b11cdad6a8bc4dd867f06d7c46ca1c6579cc9e9601343eda649",
+        "compactSha256": "180d13afb88f5c8b7596937b1e5e1fbaa82b29beb087a381194e2794b4b6ebd0"
+      },
+      "contracts/speech-alignment-markers-v1.json": {
+        "rawSha256": "90aaa3ef58fb515e89d0a77d6c2500cca1b8ff91a5c9e7d76db36bdb937887a5",
+        "compactSha256": "d04b9772e023d9a6ece0ee539ac48e53c0bd80cf5da0f3ce634f4c50a0efe24f"
+      },
+      "contracts/speech-alignment-v1.json": {
+        "rawSha256": "eee9bfbdfe7e7be054a73a5b9d9b16807b6b4713e3f2a31242e929018992b7af",
+        "compactSha256": "4f3dd1c933c6fd246b45a1044c9c06b9994a43b555735c689f1d4b309b267591"
+      },
+      "contracts/speech-provider-v1.json": {
+        "rawSha256": "fa125fc344b6f7af3cfa86821834b014ad68ba65ae2d11eb726b751e03eda492",
+        "compactSha256": "98ff3ef60f0356e025ad21dd649c389855f339bba8ab0cc1ff7166409d2e40ea"
+      },
+      "contracts/stacking-v1.json": {
+        "rawSha256": "d6aa3d4187041ec064db930ed19d59c58cc498721fb4f35bc8a04fe5572e987f",
+        "compactSha256": "e39d12265ac4c997c0a7510b74c93475912ba13ea193bfebdad514270d009b47"
+      },
+      "contracts/styled-text-layers-v1.json": {
+        "rawSha256": "c284e0f42423364d2e7c0e469ab648473594877561f81101318fb22e901cb426",
+        "compactSha256": "0a048ec77f6685d15c69fe96969178c5cb3639ebc1b1a86d8769800edc6a5dbf"
+      },
+      "contracts/svg-ingestion-v1.json": {
+        "rawSha256": "a1054ebe521e34bb3b40d39ba2f2c6546f6d766847e8f65591fa75bdfc605cd9",
+        "compactSha256": "5388f3b686b5465169173167bf046a194b334fd9c61e12fb4accecc92da0f801"
+      },
+      "contracts/template-slots-v1.json": {
+        "rawSha256": "5b83424564f9e5ba50a904d117e614fde56310a03123bd2143bc7f08b324dad5",
+        "compactSha256": "b758abd44fb18386b977e5cfd9840ac982b319c45cb4c99049e33c0fbfad797f"
+      },
+      "contracts/text-layout-v2.json": {
+        "rawSha256": "cf0d9ffd011700aebfee85b359ad17d8d5c72e2c57fc827124b5d1e4705080f4",
+        "compactSha256": "83bbdca2dd57c95ce7d3fa00fa85ef2ba8745a565529d633a2064278fe2f9aff"
+      },
+      "contracts/timeline-audio-events-v1.json": {
+        "rawSha256": "f7db7328fd5c31fed325296cfcf0dfeb9e82a24b8f3adb0ee7e172d0626c43aa",
+        "compactSha256": "c5cde4f11e3e59adcf4c1643f5e211748e4c8627f125d641861a10f0b8591fa4"
+      },
+      "contracts/track-mattes-v1.json": {
+        "rawSha256": "51f43198e5eeaad24ace257594f52e5bd74316bd5d532fcdbb451b4f4a345d9f",
+        "compactSha256": "bb5f857b1f328781580f0a826821be0f5b4c35fe48ac32b2d51958acd459bb04"
+      },
+      "contracts/transcription-provider-v1.json": {
+        "rawSha256": "a7321814a51c25579a8d2fb45f3937e100a34838be42567836e4b2f3396087a4",
+        "compactSha256": "b8cf70436e2eb8844fe3923405f672da9fe67c92bf9e8fd27261fc082a246609"
+      },
+      "contracts/transform2d-v1.json": {
+        "rawSha256": "3bd46df7888063de8b2d13934689a8405ddfffb0431e3a5d1310651ff43ffb97",
+        "compactSha256": "d70c14337e8d327bdd44835535ca31e42d8619c89f6acb599b77bb8b1c2d074b"
+      },
+      "contracts/vector-primitives-v1.json": {
+        "rawSha256": "888523f6b6241c6594ff4c32aa71560bd744eb901f3d6243e7da9a4ffea168af",
+        "compactSha256": "3a1409a68e2d783989e17e5b327ba6fe6b10a3dd17580b7185984ef0502c32e9"
+      }
+    },
+    "main": {
+      "contracts/advanced-text-layout-v1.json": {
+        "rawSha256": "e04c5db0c2a51959d682a80bb9d14552b732530440562d28555c8cc438abceb0",
+        "compactSha256": "584f6b404088a1f3a5bca062d8b79a959a040e22c765722773dd27702ca9ee54"
+      },
+      "contracts/animation-channels-v1.json": {
+        "rawSha256": "d6684b83b4cd426db588681e65f72b70953edbc3fb7f895850903bf63ba022fd",
+        "compactSha256": "3a1fd3010b7880826a45ee770fe902e4c09c4d90b7d22c02b827b27935e77a94"
+      },
+      "contracts/animation-presets-v1.json": {
+        "rawSha256": "f95b72db980a709acdd2b2e4bf5d9a77f856aeb0b6cc6fa12a24f5a2fd09b390",
+        "compactSha256": "3c93532fd5517d09aa4a201d9dae1ba40cbeeedeeb09583ffad89e330dcf4a0e"
+      },
+      "contracts/artifact-delivery-v2.json": {
+        "rawSha256": "acaf43fe6653c8accfb2ead2272b43d52632c48d51a05f101ba71292f3611736",
+        "compactSha256": "5730fa6bd2fc371a157869d55484a37817fadd4049298e08432da1e645fbd5a4"
+      },
+      "contracts/audio-analysis-v1.json": {
+        "rawSha256": "c1c516ae01b29bf53b97e45d0ea2ca6ce78488ec6c21834b392c3a4f841bb9aa",
+        "compactSha256": "25e3c52ae0c1d4ae2fc33989ee7349d73e02741cf820ec0512b82dbbb7aee89a"
+      },
+      "contracts/audio-bus-dsp-v1.json": {
+        "rawSha256": "7024773854b883b8d421796a9aa274b201fab0cfe4bfb03fd06e2612c43ee6a6",
+        "compactSha256": "b37de50a39294c7f78c3ba12a9e8c321a35a1b92ff47540fb7e4190e2e338b92"
+      },
+      "contracts/audio-bus-ducking-v1.json": {
+        "rawSha256": "97ff254d14b34d324a0d57e13299cf8f6d8e31817cd36336fc3ce378bfef3eb8",
+        "compactSha256": "baa0637969ab9c5c5054cc633318c3843bb7b7d17fd14c785482198eceea3174"
+      },
+      "contracts/audio-buses-v1.json": {
+        "rawSha256": "0ec0819b6044de308e6cda3d359bb0ef0fad2b3f1958b909f34063831c4e6a48",
+        "compactSha256": "e1c397caab9e3342936e2e509e89772d9d6ba4f917c9e4c0c3a3b3acc1fb0c08"
+      },
+      "contracts/blend-modes-v1.json": {
+        "rawSha256": "55e0ecd219bff427a7194ce2ad3b41d52cbdb07c404a61ddb3a3cfae05c9c057",
+        "compactSha256": "24ff929662fe06d0c35719da338193f7fb5678002d5f3906a765ab37f6ea7fa8"
+      },
+      "contracts/channel-style-packs-v1.json": {
+        "rawSha256": "5c897c0c528884ad96da173fe56c32f7128603a5a656b71b099c06abe34f9ec9",
+        "compactSha256": "bbc8ed8c6cb3840e0606e3c3466b82ed58adee5a671522e0073cdb7d76b8a7fd"
+      },
+      "contracts/complete-reference-scene-v1.json": {
+        "rawSha256": "41deb91f35ccbbf379e7d3ffd0e4d402077fbaa37bee3a9253363fe8221e9cc0",
+        "compactSha256": "5696ca72976fa805d0d5ebaca75f5259dce69cbb1ab72221310208037f201750"
+      },
+      "contracts/component-definitions-v1.json": {
+        "rawSha256": "7a60523096fdaa1c2ee860d59d079330e2dd0b5735838cf1169eb7e39f4387f3",
+        "compactSha256": "81243a9c8f897b6120afff4e83da8d96beae256ae2b9c644da4692002a4c85ce"
+      },
+      "contracts/component-evaluation-v1.json": {
+        "rawSha256": "2f5e763e8b9d339958f485feaeb752d98e98916b54b87f290b0f5e34178735c8",
+        "compactSha256": "af266fbad5d2983422a4b674636fc87c85adadd9c229e4c24843374a1f321a1c"
+      },
+      "contracts/component-lifecycle-v1.json": {
+        "rawSha256": "1b71ed011a62f31632294db04c93ffc9a59a889168f5e480dbffb14ef6c4a08b",
+        "compactSha256": "f25084da670f11b3ce3b328820a77bb803195ecf7a4d6c860ec7c7b4ece3023f"
+      },
+      "contracts/contract-ownership-v1.json": {
+        "rawSha256": "57f1eebfa5f92679e5bfa182023909c2ffe6baf3ff0b8c6682f3a69c0c56887e",
+        "compactSha256": "adef7c8a4de812ea55f70ea4a0f42b51d96c78abadd7390ed8584fbf2a9f8ef8"
+      },
+      "contracts/desktop-compositing-controls-v1.json": {
+        "rawSha256": "74d3ad57e99edcf40afb7c6e6d03dc80d052a46534505929f3eaa7690c4b6574",
+        "compactSha256": "d8668d97c68c8b4e875d0f2df5f263aa883a5c9c5d631304f7adc4166b7b11e9"
+      },
+      "contracts/durable-production-requests-v1.json": {
+        "rawSha256": "8ec4446b5a3f03ffba13545255a828b62c7cfdc2bc9c8a71096ecab062d82b50",
+        "compactSha256": "8c8eb8b4c42b5987160da3705d94416e95582ef2aa9214f98905f515c4f532b9"
+      },
+      "contracts/error-codes-v1.json": {
+        "rawSha256": "28eb9e370cdcd3ebc074b1a26ac2df686c03d5dd2550a5ef5fa220fe32e1937b",
+        "compactSha256": "367a8b5fe70f7304d47e06eca0b43e2ae7958c2e288964d8e11c79965ef11713"
+      },
+      "contracts/extended-visual-animation-v1.json": {
+        "rawSha256": "f7086d9fab261ce20cd0ce50a6a0e545b1d22c3cb89f9c20dc472f7ad71e35d8",
+        "compactSha256": "72ccdfdfff1e1c700e129fbd544a28d36756c057c81e8f9ee84086ecf09ac84c"
+      },
+      "contracts/ffmpeg-spawn-diagnostics-v1.json": {
+        "rawSha256": "5f98de9ee0f13a8f342ca471207022f47a0fb1dd65c9d2901107cefabfb9d75d",
+        "compactSha256": "261d98f46c7ab962c58fc24d8c8c46329e6e8a223026116ba11aba0b1a82e123"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-audio-provenance.json": {
+        "rawSha256": "4c820c658261701b24bab9c6b68bcbd3143fe69e9428eb04b5d0c5be5d88d4de",
+        "compactSha256": "b27b2931285d62f07880d9a113edc7a60f839cb33fb59e1c185224fd06955d97"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-conversion-provenance.json": {
+        "rawSha256": "75084162b91f2ae1538ad3c62bef5f28ece0412414fb456912ef85cf4f054dff",
+        "compactSha256": "71bfa2bc1cb4691e46ff89b6502aa15bf44bc468affeff265dd6e4e61355792a"
+      },
+      "contracts/fixtures/masked-hero-reveal-v1/reference-film-provenance.json": {
+        "rawSha256": "d1bc6781b6dbcdc84324f28a34f827b88d3987ef1c2d660189fdeed83de7daa2",
+        "compactSha256": "a6e2ba55b3292f7c0e75bfb8e1329e48f4986222065eef7f6f44ad5789c28b5a"
+      },
+      "contracts/group-compositing-v1.json": {
+        "rawSha256": "45245715bfdd97e8c12ae2c8744272494ecc32e38263aeece2c0a56f80bbb5f7",
+        "compactSha256": "d322e272397879fa78f62c5af6c5a607f61b3df680c6ce4ac6cc5e5aa92f3d50"
+      },
+      "contracts/group-parent-v1.json": {
+        "rawSha256": "11d5d56646ed6aef3f44dba653d6161902485453b6eac596c985a2eaf11708b2",
+        "compactSha256": "aec1d50fad31fce24e08dbcf7d5a3287113913d96f9c2551d53e0b5dd9f74f8b"
+      },
+      "contracts/headless-protocol-v1.json": {
+        "rawSha256": "fd9e618561829159d7ad43898d9be45972716cbc89f70e94422b33a636aa03c6",
+        "compactSha256": "02a2e034d34832577a9d496de44265841d873b4289a7c48f02c983148ac238f9"
+      },
+      "contracts/inherited-animation-timing-v1.json": {
+        "rawSha256": "a98fbbd153dcdb9a3f3afb442eab611de3b0dd597309a9d0265d3db7c9cf4100",
+        "compactSha256": "ee43ce2654fc569d3d67721e4e2383afbff275390d0b2b64e10610d7d7a40cde"
+      },
+      "contracts/initial-motion-preset-pack-v1.json": {
+        "rawSha256": "6cdcafe3a3622a60e7d4989cbca2e131cd30620b84539653f22432519637c38e",
+        "compactSha256": "4ca0d1c87c542656b8557b2aaa108cbf917e6eb2fd6d331b77cc265b19173817"
+      },
+      "contracts/job-restart-v1.json": {
+        "rawSha256": "000e74d5b788dd707bda1e18cb36df60798ee7f2e4b412c6b8a0510b9d9d7b65",
+        "compactSha256": "30b8db1f5be13459d899d77b7433ce38648a91e552d01b8e20c7e03c3a4de8f3"
+      },
+      "contracts/known-text-alignment-v1.json": {
+        "rawSha256": "b73a351cbe8794cd7d6338083e55667865f78eef520545c4147784134a5c6664",
+        "compactSha256": "4e6a8cf5295ac9529fa51e33fd692faadbb591176d1962ec7a4bf461d3a0dc0b"
+      },
+      "contracts/mask-models-v1.json": {
+        "rawSha256": "7f145228f1b62b3731078f4d2ff72f87846600800a1cba75eec1296dcbbb821b",
+        "compactSha256": "90f151bded763f7124b9f04933dc45245f6e1b3a9045ae85ec995e598c48fbb8"
+      },
+      "contracts/mask-rendering-v1.json": {
+        "rawSha256": "acb591f5eb0c8e65abfe6cd1e5454fa9478481f8cb6f905a224aedb668658ced",
+        "compactSha256": "8cc318c4875d2c0b38ca3b363f2f10757c3c391665e5a31bc27766ef82c58666"
+      },
+      "contracts/masked-hero-reveal-v1.json": {
+        "rawSha256": "e4cddbc38d16826afd89a3959ba7926b922a981577fbbf9e24455d8505c89176",
+        "compactSha256": "2b67cc0e7d7e5316caba21a5c6aeea21960b829d2aa82c936305e8f940a0d1d8"
+      },
+      "contracts/master-normalization-v1.json": {
+        "rawSha256": "8c674653d1ff1831fa54123ec26bee45235fdda1433e6f7adba02631e589ccdb",
+        "compactSha256": "db29b39e55fbe8bdc842543d4596b122dac642703be82c2caa5de73da85a6ae6"
+      },
+      "contracts/mcp-surface-v1.json": {
+        "rawSha256": "2adfa219aa545378fcfcdcb45b7fbed1faeb1914976e7b07ec1324758b2a12ce",
+        "compactSha256": "81206151b953782b10bb411a14160d8f7095c7f7d980df78edaa33759134c4a9",
+        "expandedSha256": "b6e96a3f26797bf688ef6663c2ae60f81abff9d392e2ad3fc3b44de1e39e5aca"
+      },
+      "contracts/motion-blur-sampling-v1.json": {
+        "rawSha256": "d4a6b85ee0a8a30b4dd7cd7a6ae391ea1089ce964e025715bef8ed5a2fa763e8",
+        "compactSha256": "4b2a61196e543282883e8c590a904cc47d6104d9bbd6af8dc6afd2396f39e37a"
+      },
+      "contracts/motion-graphics-v1.json": {
+        "rawSha256": "0bddec4de56324507b8142645e067dc38aa175cd715652c20a1ba93553de712e",
+        "compactSha256": "5c87717e02e659cc99c4b9a05ec62b66caaf6cf8a6489e81e2cdaaa8831ead77"
+      },
+      "contracts/narration-blocks-v1.json": {
+        "rawSha256": "ec5aa1a1c84133feb8ff986308b22f032459f20f3a5a88d581fd589e20b8702d",
+        "compactSha256": "642817d9fdcf86c52f9bf4b57f1759b254576d4bc6921cfe64090047055fb249"
+      },
+      "contracts/narration-driven-fixture-v1.json": {
+        "rawSha256": "4ebdd0ecdca880ed12393c2239182865920908e6ffee8cc40f83bebc12e51dfd",
+        "compactSha256": "959c2d25702f7e16cd872612395377c58a3e1ca01d808a691f2e1b74720e73bf"
+      },
+      "contracts/narration-profiles-v1.json": {
+        "rawSha256": "fb38327d1e18a60386df088a10c729c511fc522d7354072ce02c9e62c3361ab1",
+        "compactSha256": "eb09a95da7f63bd3977d8b5f298480218c6299cbf6cc0dc76ce423218f282a8f"
+      },
+      "contracts/native-motif-pack-v1.json": {
+        "rawSha256": "06107ec4b0d70631d8a053606f0657ab932f948c9bdcf44ee6a03fb9804c21a0",
+        "compactSha256": "320d7129b26f5dc30a581411cde71c85f165816657df89988bc34e5fc854769d"
+      },
+      "contracts/native-role-team-v1.json": {
+        "rawSha256": "f51be076a75f28aa29aac7ecc9633ace36d7dfb9c4f5e6f8b73d7866e556bb19",
+        "compactSha256": "a461c1d20061487af3122975f5f01ea9fd706148ef27d8e85bc136fd494d5362"
+      },
+      "contracts/parameterized-effects-v1.json": {
+        "rawSha256": "c9ca81b31e54eb25bd2b89a1aa64e316e93d6be0fa0e48d355bd661a2511b5fd",
+        "compactSha256": "0d582526a474edd18f5ecb6527f251c277af0eddab5dbca37d5184fcde66212f"
+      },
+      "contracts/preview-review-v1.json": {
+        "rawSha256": "0c7f669cdc7e9747e569a71c2cdce16460c31f404c21234373cb5f0e61d9cd6d",
+        "compactSha256": "2282d54eeb3b74c24e5ef86a46a61a4ba2f1838a53e175f4eada376c3ddca65d"
+      },
+      "contracts/procedural-grids-v1.json": {
+        "rawSha256": "ddf8c805b45526f92c017288c178b87eaa862b9e64fbc1ede5d8e5db721a83ed",
+        "compactSha256": "a24e62f2ab109c175e9b263682d8f9bd49fb0af281dd9b622155ff6380d8de3f"
+      },
+      "contracts/render-budget-diagnostics-v1.json": {
+        "rawSha256": "bf4a8ba1a710f5ddbcf980039fe087527bf477d2a6792e752d57a0894d68d41e",
+        "compactSha256": "bd8f627b2c2fabc1ab129d11f9cdfbb1cd8c38aee3f7f7a33954d54803ad1cb4"
+      },
+      "contracts/render-preparation-progress-v1.json": {
+        "rawSha256": "307fa830db2e4a70ae7b9633f7ea8d53b240e111f32ea3b988dde8e4b7c20f42",
+        "compactSha256": "60a28b7efb88624c12028f8ba4441a34f90b443e00ee3d15ee589b00c3094580"
+      },
+      "contracts/render-worker-v1.json": {
+        "rawSha256": "6ae923842722f7ee961685498e35256698f668f8310a71337d6f74a6f3e99a0b",
+        "compactSha256": "75aa5aebe33240b2ffc4924ca80282a33b34a92006ff053ea11b38b345cf9f21"
+      },
+      "contracts/repeaters-v1.json": {
+        "rawSha256": "9591973d55516fd27c7e6279bcc45ef7ce9d938e38e3c39253bd4ea88504c49e",
+        "compactSha256": "fc214bf4a3326779855576187da39f5b20b07bbe10ac116290d3f96e16045b4a"
+      },
+      "contracts/rich-text-documents-v1.json": {
+        "rawSha256": "2310b48a71c7d7339a867fb7827c6d3dfa25de4019e07442971bad5ebe52d4e7",
+        "compactSha256": "507ae49f8caa9bd85119fb9223ac4eab69f2e208d5e67cb80995f4d340d223d8"
+      },
+      "contracts/semantic-sound-events-v1.json": {
+        "rawSha256": "52ecc36dc8e40af21b19003d43b7a61522d0b8ddb79d47b828ad7097a1e1bc30",
+        "compactSha256": "355df2b0bb73d20665be466f5e31819b7bd733d3fb4d9bcf7560162e0f832d59"
+      },
+      "contracts/shape-items-v1.json": {
+        "rawSha256": "04e97d6e6ef1fe5ee7d8d605e67b105a24b7fa4c238e14f5b241ae3c33b853e3",
+        "compactSha256": "36671d2461545331ac45e9bf88c59d3f7657294bd5613ed6e451d023072e0afb"
+      },
+      "contracts/short-candidate-planning-cli-v1.json": {
+        "rawSha256": "35ae154965598d57726612b9fb9baa81165a8001ce6a2a89f9d27dbbe38d71bc",
+        "compactSha256": "b34e4ca1f668cc49e70f44c253e19b37957dd84daa50ec3d6e6f83717caa723f"
+      },
+      "contracts/solid-graphic-color-slots-v1.json": {
+        "rawSha256": "31fdef5c57c1b16bd14624e30eb8fd0333ab09f1f52b00e42f24bb455401eeb8",
+        "compactSha256": "86fab22c6a1f979b1c3055c58d7d9af5548175b7d57bc1619d1eb8e1b9f81243"
+      },
+      "contracts/speech-alignment-markers-v1.json": {
+        "rawSha256": "90aaa3ef58fb515e89d0a77d6c2500cca1b8ff91a5c9e7d76db36bdb937887a5",
+        "compactSha256": "d04b9772e023d9a6ece0ee539ac48e53c0bd80cf5da0f3ce634f4c50a0efe24f"
+      },
+      "contracts/speech-alignment-v1.json": {
+        "rawSha256": "eee9bfbdfe7e7be054a73a5b9d9b16807b6b4713e3f2a31242e929018992b7af",
+        "compactSha256": "4f3dd1c933c6fd246b45a1044c9c06b9994a43b555735c689f1d4b309b267591"
+      },
+      "contracts/speech-provider-v1.json": {
+        "rawSha256": "fa125fc344b6f7af3cfa86821834b014ad68ba65ae2d11eb726b751e03eda492",
+        "compactSha256": "98ff3ef60f0356e025ad21dd649c389855f339bba8ab0cc1ff7166409d2e40ea"
+      },
+      "contracts/stacking-v1.json": {
+        "rawSha256": "d6aa3d4187041ec064db930ed19d59c58cc498721fb4f35bc8a04fe5572e987f",
+        "compactSha256": "e39d12265ac4c997c0a7510b74c93475912ba13ea193bfebdad514270d009b47"
+      },
+      "contracts/styled-text-layers-v1.json": {
+        "rawSha256": "c284e0f42423364d2e7c0e469ab648473594877561f81101318fb22e901cb426",
+        "compactSha256": "0a048ec77f6685d15c69fe96969178c5cb3639ebc1b1a86d8769800edc6a5dbf"
+      },
+      "contracts/svg-ingestion-v1.json": {
+        "rawSha256": "a1054ebe521e34bb3b40d39ba2f2c6546f6d766847e8f65591fa75bdfc605cd9",
+        "compactSha256": "5388f3b686b5465169173167bf046a194b334fd9c61e12fb4accecc92da0f801"
+      },
+      "contracts/template-slots-v1.json": {
+        "rawSha256": "5b83424564f9e5ba50a904d117e614fde56310a03123bd2143bc7f08b324dad5",
+        "compactSha256": "b758abd44fb18386b977e5cfd9840ac982b319c45cb4c99049e33c0fbfad797f"
+      },
+      "contracts/text-layout-v2.json": {
+        "rawSha256": "cf0d9ffd011700aebfee85b359ad17d8d5c72e2c57fc827124b5d1e4705080f4",
+        "compactSha256": "83bbdca2dd57c95ce7d3fa00fa85ef2ba8745a565529d633a2064278fe2f9aff"
+      },
+      "contracts/timeline-audio-events-v1.json": {
+        "rawSha256": "f7db7328fd5c31fed325296cfcf0dfeb9e82a24b8f3adb0ee7e172d0626c43aa",
+        "compactSha256": "c5cde4f11e3e59adcf4c1643f5e211748e4c8627f125d641861a10f0b8591fa4"
+      },
+      "contracts/track-mattes-v1.json": {
+        "rawSha256": "51f43198e5eeaad24ace257594f52e5bd74316bd5d532fcdbb451b4f4a345d9f",
+        "compactSha256": "bb5f857b1f328781580f0a826821be0f5b4c35fe48ac32b2d51958acd459bb04"
+      },
+      "contracts/transcription-provider-v1.json": {
+        "rawSha256": "a7321814a51c25579a8d2fb45f3937e100a34838be42567836e4b2f3396087a4",
+        "compactSha256": "b8cf70436e2eb8844fe3923405f672da9fe67c92bf9e8fd27261fc082a246609"
+      },
+      "contracts/transform2d-v1.json": {
+        "rawSha256": "3bd46df7888063de8b2d13934689a8405ddfffb0431e3a5d1310651ff43ffb97",
+        "compactSha256": "d70c14337e8d327bdd44835535ca31e42d8619c89f6acb599b77bb8b1c2d074b"
+      },
+      "contracts/vector-primitives-v1.json": {
+        "rawSha256": "888523f6b6241c6594ff4c32aa71560bd744eb901f3d6243e7da9a4ffea168af",
+        "compactSha256": "3a1409a68e2d783989e17e5b327ba6fe6b10a3dd17580b7185984ef0502c32e9"
+      }
+    }
+  }
+}

@@ -35,6 +35,7 @@ import {
   removeArtworkAdditions,
   restoreArtworkRaw,
 } from "./fixtures/artwork-projection";
+import { removeDurableMcpAdditions } from "./fixtures/durable-production-projection";
 import { expandMcpSurfaceCatalog } from "./fixtures/mcp-surface-catalog";
 
 const digest = (value: string) =>
@@ -163,9 +164,10 @@ export const verifyArtworkContract = () => {
   ).toEqual(structural);
   const historical = JSON.parse(restoreArtworkBranchRaw(JSON.stringify(MCP)));
   const predecessor = removeArtworkAdditions(historical, "mcp-surface-v1");
-  expect(predecessor.tools).toEqual(MCP.tools);
+  const artworkPeer = removeDurableMcpAdditions(MCP);
+  expect(predecessor.tools).toEqual(artworkPeer.tools);
   expect(Object.keys(predecessor.toolDefinitions)).toEqual(
-    Object.keys(MCP.toolDefinitions)
+    Object.keys(artworkPeer.toolDefinitions)
   );
   for (const name of [
     "mcp-surface-v1",

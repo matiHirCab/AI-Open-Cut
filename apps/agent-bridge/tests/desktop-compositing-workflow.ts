@@ -14,6 +14,7 @@ import { z } from "zod";
 import audioBusDucking from "../../../contracts/audio-bus-ducking-v1.json";
 import busCatalog from "../../../contracts/audio-buses-v1.json";
 import catalog from "../../../contracts/desktop-compositing-controls-v1.json";
+import durableProduction from "../../../contracts/durable-production-requests-v1.json";
 import masterNormalization from "../../../contracts/master-normalization-v1.json";
 import soundCatalog from "../../../contracts/semantic-sound-events-v1.json";
 import solidGraphicSlots from "../../../contracts/solid-graphic-color-slots-v1.json";
@@ -97,6 +98,7 @@ it("fresh MCP compositing standalone and alias batches preserve full failures or
     expect(status.protocolVersion).toBe(catalog.headlessProtocolVersion);
     const tools = await client.listTools();
     const addedTools = [
+      ...durableProduction.toolNames,
       "narration_profile_apply",
       "narration_profile_create",
       "narration_profile_get",

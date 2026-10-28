@@ -33,6 +33,10 @@ export class JobRuntimeGuard {
     this.#root = root;
   }
 
+  get owned() {
+    return this.#owned !== undefined;
+  }
+
   acquire() {
     if (this.#owned) {
       this.#verify(this.#owned);

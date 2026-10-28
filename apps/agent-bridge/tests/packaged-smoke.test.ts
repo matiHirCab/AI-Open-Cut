@@ -23,6 +23,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyArtworkDurableWorkflow } from "./artwork-durable-workflow";
 import { verifyAudioAnalysisWorkflow } from "./audio-analysis-workflow";
 import { verifyAudioBusDspWorkflow } from "./audio-bus-dsp-workflow";
 import { verifyAudioBusDuckingWorkflow } from "./audio-bus-ducking-workflow";
@@ -33,6 +34,7 @@ import {
   verifyComponentDefinitionWorkflow,
   verifySlotRegressionWorkflow,
 } from "./component-workflow";
+import { verifyDurableProductionWorkflow } from "./durable-production-workflow";
 import { verifyFfmpegSpawnTransportWorkflow } from "./ffmpeg-spawn-workflow";
 import { memoizedSdkValidator } from "./fixtures/memoized-sdk-validator";
 import { verifyGridWorkflow } from "./grid-workflow";
@@ -756,3 +758,14 @@ it("exposes preparation progress before completion through packaged MCP jobs", a
   await verifyRenderPreparationProgressWorkflow(bridgeParameters);
   await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
 });
+
+it("retains production intent and truthful outcomes through actual MCP reconnect and process death", async () => {
+  await verifyDurableProductionWorkflow(bridgeParameters);
+});
+
+it.runIf(process.platform === "linux")(
+  "combines artwork and narration with actual durable native rendering and reconnect",
+  async () => {
+    await verifyArtworkDurableWorkflow(bridgeParameters);
+  }
+);

@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { restoreArtworkBranchRaw } from "./fixtures/artwork-integration-history";
 import pins from "./fixtures/artwork-integration-pins.json";
 import { restoreArtworkIntegrationRaw } from "./fixtures/artwork-integration-projection";
+import { restoreMain47Raw } from "./fixtures/durable-main47-projection";
 
 const digest = (raw: string) => createHash("sha256").update(raw).digest("hex");
 for (const [name, expected] of Object.entries(pins.main47)) {
@@ -12,11 +13,11 @@ for (const [name, expected] of Object.entries(pins.main47)) {
       new URL(`../../../contracts/${name}`, import.meta.url),
       "utf8"
     );
-    expect(digest(restoreArtworkIntegrationRaw(raw))).toBe(expected);
+    expect(digest(restoreMain47Raw(raw))).toBe(expected);
     expect(digest(restoreArtworkBranchRaw(raw))).toBe(
       pins.artwork47[name as keyof typeof pins.artwork47]
     );
-    expect(digest(restoreArtworkIntegrationRaw(`${raw}\n`))).not.toBe(expected);
+    expect(digest(restoreMain47Raw(`${raw}\n`))).not.toBe(expected);
   });
 }
 it("rejects missing duplicate or malformed owned schema and operation additions", () => {

@@ -23,7 +23,8 @@ import {
   shortPlanningSuccessSchema,
 } from "../src/short-candidates/contract";
 import { planShortCandidates } from "../src/short-candidates/planner";
-import { restoreChannelPackRaw } from "./fixtures/channel-packs-projection";
+import { restoreMain47PeersRaw } from "./fixtures/durable-main47-peers";
+import { restoreDurableRaw } from "./fixtures/durable-production-projection";
 import {
   assertShortPlanningOwnership,
   removeShortPlanningOwnership,
@@ -144,12 +145,9 @@ export const verifyShortPlanningContract = () => {
         .success
     ).toBe(false);
   }
-  const current = restoreChannelPackRaw(
-    readFileSync(
-      new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
-      "utf8"
-    ),
-    "contract-ownership-v1"
+  const current = readFileSync(
+    new URL("../../../contracts/contract-ownership-v1.json", import.meta.url),
+    "utf8"
   );
   const raw = readFileSync(
     new URL(
@@ -161,11 +159,17 @@ export const verifyShortPlanningContract = () => {
   expect(createHash("sha256").update(raw).digest("hex")).toBe(
     contract.predecessorOwnershipSha256
   );
-  expect(restoreShortPlanningOwnershipRaw(current)).toBe(raw);
+  expect(
+    restoreDurableRaw(
+      restoreShortPlanningOwnershipRaw(restoreMain47PeersRaw(current))
+    )
+  ).toBe(raw);
   expect(restoreShortPlanningOwnershipRaw(raw)).toBe(raw);
   expect(
-    restoreShortPlanningOwnershipRaw(
-      restoreChannelPackRaw(JSON.stringify(ownership), "contract-ownership-v1")
+    restoreDurableRaw(
+      restoreShortPlanningOwnershipRaw(
+        restoreMain47PeersRaw(JSON.stringify(ownership))
+      )
     )
   ).toBe(JSON.stringify(JSON.parse(raw)));
   const compactDrift = structuredClone(ownership);
