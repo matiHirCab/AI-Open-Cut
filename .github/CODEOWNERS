@@ -539,6 +539,21 @@
 /apps/agent-bridge/src/tts.ts @matiHirCab
 /apps/agent-bridge/tests/tts-preflight.test.ts @matiHirCab
 
+# Source-preserving artwork preparation (issue220).
+/crates/editor-core/src/model/artwork.rs @matiHirCab
+/crates/editor-core/src/assets/artwork.rs @matiHirCab
+/crates/editor-core/src/store/artwork.rs @matiHirCab
+/crates/editor-core/tests/artwork_preparation.rs @matiHirCab
+/apps/agent-bridge/src/artwork/ @matiHirCab
+/apps/agent-bridge/src/artwork-cli.ts @matiHirCab
+/apps/agent-bridge/tests/artwork-contract.ts @matiHirCab
+/apps/agent-bridge/tests/artwork.test.ts @matiHirCab
+/apps/agent-bridge/tests/artwork-cli.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/artwork-* @matiHirCab
+/docs/artwork-preparation.md @matiHirCab
+
+# Actual native CLI source-smoke acceptance for artwork preparation.
+/scripts/verify-artwork-preparation.py @matiHirCab
 # Stable narration sentence blocks (NB1)
 /contracts/narration-blocks-v1.json @matiHirCab
 /crates/editor-core/src/model/narration_blocks.rs @matiHirCab
@@ -614,3 +629,7 @@
 /apps/agent-bridge/tests/fixtures/narration-cli-process.ts @matiHirCab
 /apps/agent-bridge/tests/channel-packs-workflow.ts @matiHirCab
 /crates/editor-core/tests/inherited_animation_timing.rs @matiHirCab
+
+# Schema48 artwork/narration integration parity.
+/apps/agent-bridge/tests/artwork-integration.test.ts @matiHirCab
+/apps/agent-bridge/tests/fixtures/artwork-integration-* @matiHirCab

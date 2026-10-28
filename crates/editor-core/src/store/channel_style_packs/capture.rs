@@ -35,9 +35,9 @@ impl EditorCore {
         crate::persistence::require_no_pending_transaction(self.storage.as_ref(), &dir)?;
         let source: Project = read_json(self.storage.as_ref(), &project_path(&dir))?;
         check_revision(&source, capture.expected_revision)?;
-        if !matches!(source.schema_version, 46 | 47) {
+        if !matches!(source.schema_version, 46..=48) {
             return Err(invalid(
-                "capture requires a compatible schema46/47 source; explicitly open/migrate unsupported sources first",
+                "capture requires a compatible schema46/47/48 source; explicitly open/migrate unsupported sources first",
             ));
         }
         validate_project_visual_properties(&source)?;
@@ -155,6 +155,9 @@ impl EditorCore {
         let mut subset = source.clone();
         subset.tracks.clear();
         subset.sound_definitions.clear();
+        // Portable dependency selection uses only the chosen recipes, not unrelated
+        // asset-catalog provenance roots in the source project.
+        subset.assets.clear();
         subset.components = package
             .recipes
             .iter()
@@ -237,6 +240,12 @@ impl EditorCore {
 }
 
 fn image_declaration(asset: &Asset) -> Result<ChannelImageDependency, CoreError> {
+    if asset.artwork_derivation.is_some() {
+        return Err(CoreError::new(
+            ErrorCode::ValidationFailed,
+            "channel package v1 cannot preserve derived artwork source provenance",
+        ));
+    }
     if asset.media_type != MediaType::Image || asset.has_audio {
         return Err(invalid("channel packs support managed image artwork only"));
     }

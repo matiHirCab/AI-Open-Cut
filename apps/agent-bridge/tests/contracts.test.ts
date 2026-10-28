@@ -8,6 +8,7 @@ import { z } from "zod/v4";
 import ANIMATION_CHANNELS from "../../../contracts/animation-channels-v1.json";
 import PRESETS from "../../../contracts/animation-presets-v1.json";
 import ARTIFACT_DELIVERY from "../../../contracts/artifact-delivery-v2.json";
+import ARTWORK from "../../../contracts/artwork-preparation-v1.json";
 import COMPLETE_REFERENCE from "../../../contracts/complete-reference-scene-v1.json";
 import COMPONENTS from "../../../contracts/component-definitions-v1.json";
 import INSTANCE_CATALOG from "../../../contracts/component-evaluation-v1.json";
@@ -26,7 +27,6 @@ import MASTER_NORMALIZATION from "../../../contracts/master-normalization-v1.jso
 import MCP_SURFACE_SOURCE from "../../../contracts/mcp-surface-v1.json";
 import MOTION_BLUR from "../../../contracts/motion-blur-sampling-v1.json";
 import MOTION_GRAPHICS_CONTRACT from "../../../contracts/motion-graphics-v1.json";
-import NARRATION_BLOCKS from "../../../contracts/narration-blocks-v1.json";
 import RENDER_BUDGET from "../../../contracts/render-budget-diagnostics-v1.json";
 import PREPARATION_PROGRESS from "../../../contracts/render-preparation-progress-v1.json";
 import SOLID_GRAPHIC from "../../../contracts/solid-graphic-color-slots-v1.json";
@@ -86,6 +86,8 @@ import type { Server, ServerDependencies } from "../src/server/shared";
 import { registerSpeechTools } from "../src/server/speech";
 import { registerTimelineTools } from "../src/server/timeline";
 import { registerTranscriptionTools } from "../src/server/transcription";
+import { verifyArtworkContract } from "./artwork-contract";
+import { verifyArtworkDurableContract } from "./artwork-durable-contract";
 import { verifyChannelPackContract } from "./channel-packs-contract";
 import { verifyDurableProductionContract } from "./durable-production-contract";
 import {
@@ -461,6 +463,11 @@ const dependencies = {
   speech: {},
   transcription: {},
 } as unknown as ServerDependencies;
+
+it(
+  "governs exact artwork and durable integration predecessors",
+  verifyArtworkDurableContract
+);
 
 describe("canonical public contracts", () => {
   it(
@@ -1103,6 +1110,7 @@ describe("canonical public contracts", () => {
       channel_pack_import: true,
       channel_pack_list: true,
       channel_pack_update: true,
+      commit_artwork: true,
       commit_draft: true,
       commit_generated_asset: true,
       commit_narration_blocks: true,
@@ -1127,6 +1135,7 @@ describe("canonical public contracts", () => {
       narration_profile_resolve: true,
       narration_profile_update: true,
       open_project: true,
+      prepare_artwork: true,
       rebase_draft: true,
       redo: true,
       render_draft_preview: true,
@@ -1160,7 +1169,7 @@ describe("canonical public contracts", () => {
 
     const status = headlessStatusSchema.parse({
       capabilities: HEADLESS_CONTRACT.status.editorCapabilities,
-      projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
+      projectSchemaVersion: ARTWORK.projectSchemaVersion,
       protocolVersion: HEADLESS_CONTRACT.version,
       ready: true,
       subsystems: {
@@ -1255,7 +1264,7 @@ describe("canonical public contracts", () => {
           ...HEADLESS_CONTRACT.status.editorCapabilities,
           ...renderingCapabilities,
         ],
-        projectSchemaVersion: NARRATION_BLOCKS.projectSchemaVersion,
+        projectSchemaVersion: ARTWORK.projectSchemaVersion,
         protocolVersion: 1,
         ready: true,
         subsystems: {
@@ -2151,3 +2160,8 @@ it("governs native preparation numeric progress without changing prior public ca
     restoreRenderPreparationOwnershipRaw(JSON.stringify(drift))
   ).toThrow("Unrelated");
 });
+
+it(
+  "governs source-preserving artwork contracts and exact additive predecessors",
+  verifyArtworkContract
+);

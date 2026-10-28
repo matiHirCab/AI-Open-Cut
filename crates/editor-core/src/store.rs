@@ -1,3 +1,4 @@
+mod artwork;
 mod channel_style_packs;
 mod narration_blocks;
 mod narration_profiles;
@@ -437,6 +438,7 @@ impl EditorCore {
         let stored = store_content_addressed(self.storage.as_ref(), &dir, &source)?;
         push_undo(&mut history, &project);
         project.assets.push(Asset {
+            artwork_derivation: None,
             id: asset_id.clone(),
             media_type,
             file_name: source
@@ -522,6 +524,7 @@ impl EditorCore {
             let display_name = generated_display_name(&request.origin);
 
             project.assets.push(Asset {
+                artwork_derivation: None,
                 id: asset_id.clone(),
                 media_type: MediaType::Audio,
                 file_name: display_name,
@@ -763,6 +766,7 @@ impl EditorCore {
                 &mut rollback,
             )?;
             project.assets.push(Asset {
+                artwork_derivation: None,
                 id: asset_id.clone(),
                 media_type: MediaType::Audio,
                 file_name: generated_display_name(&request.origin),

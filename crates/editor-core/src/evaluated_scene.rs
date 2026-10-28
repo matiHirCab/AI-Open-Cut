@@ -4604,6 +4604,7 @@ mod tests {
 
     fn asset(id: &str, media_type: MediaType, has_audio: bool) -> Asset {
         Asset {
+            artwork_derivation: None,
             id: id.into(),
             media_type,
             file_name: format!("{id}.media"),

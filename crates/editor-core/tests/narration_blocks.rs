@@ -286,12 +286,12 @@ fn schema46_current_history_adopt_empty_manifests_and_invalid_generations_never_
     )
     .unwrap();
     let migrated = core.get_project(&id).unwrap();
-    assert_eq!(migrated.schema_version, 47);
+    assert_eq!(migrated.schema_version, 48);
     assert!(migrated.narration_manifests.is_empty());
     let history: Value =
         serde_json::from_slice(&std::fs::read(dir.join("history.json")).unwrap()).unwrap();
     for side in ["undo", "redo"] {
-        assert_eq!(history[side][0]["schemaVersion"], 47);
+        assert_eq!(history[side][0]["schemaVersion"], 48);
         assert_eq!(history[side][0]["narrationManifests"], json!([]));
     }
     let current = serde_json::to_value(migrated).unwrap();
@@ -318,7 +318,7 @@ fn schema46_current_history_adopt_empty_manifests_and_invalid_generations_never_
         },
         {
             let mut v = current.clone();
-            v["schemaVersion"] = json!(48);
+            v["schemaVersion"] = json!(49);
             v
         },
     ] {
@@ -788,14 +788,14 @@ fn edit_draft_v2_replays_migrated_bases_and_cannot_invalidate_owned_bindings() {
     )
     .unwrap();
     let preview = core.get_draft_state(&legacy_id, &draft.id).unwrap();
-    assert_eq!(preview.project.schema_version, 47);
+    assert_eq!(preview.project.schema_version, 48);
     assert!(preview.project.narration_manifests.is_empty());
     assert_eq!(std::fs::read(&draft_path).unwrap(), before);
     let wire: Value = serde_json::from_slice(&before).unwrap();
     assert_eq!(wire["version"], 2);
     assert!(wire.get("schemaVersion").is_none() && wire.get("narrationManifests").is_none());
     core.commit_draft(&legacy_id, &draft.id, 0).unwrap();
-    assert_eq!(core.get_project(&legacy_id).unwrap().schema_version, 47);
+    assert_eq!(core.get_project(&legacy_id).unwrap().schema_version, 48);
 }
 
 #[test]
@@ -1223,4 +1223,143 @@ fn owned_caption_cue_edits_fail_but_presentation_and_last_detach_preserve_native
             .narration_manifests
             .is_empty()
     );
+}
+
+#[test]
+fn main47_narration_and_retained_history_survive_artwork48_without_identity_loss() {
+    let (root, core, profile) = setup();
+    let input = commit_input(root.path(), &core, &profile);
+    let id = input.project_id.clone();
+    core.commit_narration_blocks(input).unwrap();
+    let dir = core.paths().projects_root().join(&id);
+    let mut legacy = core.get_project(&id).unwrap();
+    let expected_manifest = serde_json::to_value(&legacy.narration_manifests).unwrap();
+    let expected_tracks = serde_json::to_value(&legacy.tracks).unwrap();
+    legacy.schema_version = 47;
+    let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
+    std::fs::write(dir.join("project.json"), &legacy_bytes).unwrap();
+    std::fs::write(
+        dir.join("history.json"),
+        serde_json::to_vec(&json!({"undo":[legacy],"redo":[]})).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(core.get_project(&id).unwrap().schema_version, 48);
+    let png_path = root.path().join("original.png");
+    let mut png = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut png, 1, 1);
+        encoder.set_color(png::ColorType::Rgba);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&[9, 18, 27, 255]).unwrap();
+    }
+    std::fs::write(&png_path, &png).unwrap();
+    let imported = core
+        .import_asset(
+            &id,
+            1,
+            &png_path,
+            MediaType::Image,
+            MediaProbeFacts {
+                has_video: true,
+                video_width: Some(1),
+                video_height: Some(1),
+                video_codec: Some("png".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let source = imported.changed_ids[0].clone();
+    let parameters = ArtworkParameters {
+        cleanup: None,
+        outline: ArtworkOutline {
+            radius: 1,
+            color: [0, 0, 0, 255],
+        },
+    };
+    let prepared = core.prepare_artwork(&id, 2, &source, parameters).unwrap();
+    let stale = prepared.manifest.clone();
+    let committed = core.commit_artwork(prepared.manifest).unwrap();
+    assert_eq!(
+        core.commit_artwork(stale).unwrap_err().code,
+        ErrorCode::RevisionConflict
+    );
+    let derivative = committed.changed_ids[0].clone();
+    let project = core.get_project(&id).unwrap();
+    let expected_assets = serde_json::to_value(&project.assets).unwrap();
+    assert_eq!(
+        serde_json::to_value(&project.tracks).unwrap(),
+        expected_tracks
+    );
+    core.undo(&id, 3).unwrap();
+    assert!(
+        !core
+            .get_project(&id)
+            .unwrap()
+            .assets
+            .iter()
+            .any(|a| a.id == derivative)
+    );
+    core.redo(&id, 4).unwrap();
+    let reopened = core.get_project(&id).unwrap();
+    assert_eq!(
+        serde_json::to_value(&reopened.narration_manifests).unwrap(),
+        expected_manifest
+    );
+    assert_eq!(
+        serde_json::to_value(&reopened.tracks).unwrap(),
+        expected_tracks
+    );
+    assert_eq!(
+        serde_json::to_value(&reopened.assets).unwrap(),
+        expected_assets
+    );
+    let source_asset = reopened.assets.iter().find(|a| a.id == source).unwrap();
+    assert_eq!(
+        std::fs::read(dir.join(&source_asset.project_relative_path)).unwrap(),
+        png
+    );
+    let valid = serde_json::to_value(&reopened).unwrap();
+    // Explicitly reject development-branch artwork47 and malformed main47,
+    // preserving the entire authoritative generation on failure.
+    for malformed in [
+        {
+            let mut value = valid.clone();
+            value["schemaVersion"] = json!(47);
+            value
+        },
+        {
+            let mut value: Value = serde_json::from_slice(&legacy_bytes).unwrap();
+            value.as_object_mut().unwrap().remove("narrationManifests");
+            value
+        },
+        {
+            let mut value: Value = serde_json::from_slice(&legacy_bytes).unwrap();
+            value["narrationManifests"] = Value::Null;
+            value
+        },
+    ] {
+        std::fs::write(
+            dir.join("project.json"),
+            serde_json::to_vec(&malformed).unwrap(),
+        )
+        .unwrap();
+        let before = inventory(root.path());
+        assert!(core.get_project(&id).is_err());
+        assert_eq!(inventory(root.path()), before);
+    }
+    std::fs::write(
+        dir.join("project.json"),
+        serde_json::to_vec(&valid).unwrap(),
+    )
+    .unwrap();
+    let mut invalid_retained = valid.clone();
+    invalid_retained["schemaVersion"] = json!(47);
+    std::fs::write(
+        dir.join("history.json"),
+        serde_json::to_vec(&json!({"undo":[invalid_retained],"redo":[]})).unwrap(),
+    )
+    .unwrap();
+    let before = inventory(root.path());
+    assert!(core.get_project(&id).is_err());
+    assert_eq!(inventory(root.path()), before);
 }

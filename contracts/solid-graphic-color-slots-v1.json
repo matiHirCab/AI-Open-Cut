@@ -1,7 +1,7 @@
 {
   "version": 1,
   "contract": "solid-graphic-color-slots-v1",
-  "projectSchemaVersion": 47,
+  "projectSchemaVersion": 48,
   "capability": "solid_graphic_color_slots_v1",
   "properties": [
     "shape.fill.color",

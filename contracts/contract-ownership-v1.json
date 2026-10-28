@@ -2010,6 +2010,40 @@
         "apps/agent-bridge/tests/fixtures/narration-profiles-projection.ts",
         "apps/agent-bridge/tests/masked-hero-reveal-native.test.ts"
       ]
+    },
+    "artworkPreparation": {
+      "canonical": "contracts/artwork-preparation-v1.json",
+      "consumers": [
+        "crates/editor-core/src/model/artwork.rs",
+        "crates/editor-core/src/model.rs",
+        "crates/editor-core/src/assets/artwork.rs",
+        "crates/editor-core/src/assets.rs",
+        "crates/editor-core/src/store/artwork.rs",
+        "crates/editor-core/src/store.rs",
+        "crates/editor-core/src/migrations.rs",
+        "crates/editor-core/tests/artwork_preparation.rs",
+        "apps/headless/src/main.rs",
+        "apps/agent-bridge/src/artwork/contract.ts",
+        "apps/agent-bridge/src/artwork/cli.ts",
+        "apps/agent-bridge/src/artwork-cli.ts",
+        "apps/agent-bridge/src/schemas.ts",
+        "apps/agent-bridge/src/headless-contract.ts",
+        "apps/agent-bridge/tests/artwork-contract.ts",
+        "apps/agent-bridge/tests/artwork-integration.test.ts",
+        "apps/agent-bridge/tests/fixtures/artwork-integration-projection.ts",
+        "apps/agent-bridge/tests/fixtures/artwork-integration-history.ts",
+        "apps/agent-bridge/tests/fixtures/artwork-integration-pins.json",
+        "apps/agent-bridge/tests/artwork.test.ts",
+        "apps/agent-bridge/tests/fixtures/artwork-projection.ts",
+        "apps/agent-bridge/tests/contracts.test.ts",
+        "docs/artwork-preparation.md",
+        "apps/agent-bridge/tests/artwork-cli.test.ts",
+        "apps/agent-bridge/tests/fixtures/artwork-additions.json",
+        "apps/agent-bridge/tests/fixtures/artwork-predecessor-pins.json",
+        "scripts/verify-artwork-preparation.py",
+        "apps/agent-bridge/tests/smoke.test.ts",
+        "crates/editor-core/tests/speech_alignment.rs"
+      ]
     }
   }
 }

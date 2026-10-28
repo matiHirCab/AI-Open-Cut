@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "projectSchemaVersion": 47,
+  "projectSchemaVersion": 48,
   "operations": [
     "commit_narration_blocks",
     "detach_narration_block",

@@ -1,0 +1,5 @@
+{
+  "apps/agent-bridge/tests/artwork-durable-workflow.ts": "796c158d36437af60ad1bab840f886c116d23547d12ac3d50534f3abb8048651",
+  "apps/agent-bridge/tests/artwork-durable-backends.test.ts": "c677debee4bcc107dc0e98ca4855955720574c14cb56f737095befe1c5c98153",
+  "apps/agent-bridge/tests/fixtures/artwork-durable-probe.mjs": "4fe7569c08c2cf3e1cd81198dc8d624e37801024d51993800b709bb0848f8831"
+}

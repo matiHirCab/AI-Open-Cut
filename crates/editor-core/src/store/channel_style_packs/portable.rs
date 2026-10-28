@@ -308,6 +308,7 @@ fn validation_project(
             .images
             .iter()
             .map(|image| Asset {
+                artwork_derivation: None,
                 id: image.key.clone(),
                 media_type: MediaType::Image,
                 file_name: "managed-image".into(),

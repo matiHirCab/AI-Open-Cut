@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -25,6 +26,7 @@ import {
   writeResultSchema,
 } from "../src/schemas";
 import { verifyAnimationEditWorkflow } from "./animation-edit-workflow";
+import { verifyArtworkDurableWorkflow } from "./artwork-durable-workflow";
 import { verifyAudioAnalysisWorkflow } from "./audio-analysis-workflow";
 import { verifyAudioBusDspWorkflow } from "./audio-bus-dsp-workflow";
 import { verifyAudioBusDuckingWorkflow } from "./audio-bus-ducking-workflow";
@@ -1418,6 +1420,58 @@ it("exposes preparation progress before completion through MCP jobs", async () =
   await verifyRenderPreparationProgressWorkflow(bridgeParameters, true);
 });
 
+it.runIf(process.platform === "linux")(
+  "prepares and explicitly commits source-preserving artwork through the hermetic file CLI",
+  async () => {
+    const report = await new Promise<string>((resolveReport, rejectReport) => {
+      execFile(
+        process.env.OPENCUT_TEST_PYTHON ?? "python3",
+        [
+          resolve(
+            import.meta.dirname,
+            "../../../scripts/verify-artwork-preparation.py"
+          ),
+          "--hermetic",
+        ],
+        {
+          cwd: resolve(import.meta.dirname, "../../.."),
+          env: {
+            ...process.env,
+            OPENCUT_HEADLESS_PATH:
+              process.env.OPENCUT_TEST_HEADLESS_PATH ??
+              resolve(
+                import.meta.dirname,
+                "../../../target/debug/opencut-headless"
+              ),
+          },
+          maxBuffer: 1024 * 1024,
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            rejectReport(
+              new Error(`Actual artwork CLI acceptance failed: ${stderr}`, {
+                cause: error,
+              })
+            );
+          } else {
+            resolveReport(stdout);
+          }
+        }
+      );
+    });
+    expect(JSON.parse(report)).toMatchObject({
+      passed: true,
+      verificationMode: "hermetic",
+    });
+  }
+);
 it("retains production intent and truthful outcomes through actual MCP reconnect and process death", async () => {
   await verifyDurableProductionWorkflow(bridgeParameters);
 });
+
+it.runIf(process.platform === "linux")(
+  "combines artwork and narration with actual durable native rendering and reconnect",
+  async () => {
+    await verifyArtworkDurableWorkflow(bridgeParameters);
+  }
+);

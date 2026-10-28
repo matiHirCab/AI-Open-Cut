@@ -1,4 +1,5 @@
 import type { z } from "zod/v4";
+import type { ArtworkManifest, ArtworkParameters } from "./artwork/contract";
 import type { ChannelRequest } from "./channel-packs/contract";
 import type { NarrationRequest } from "./narration-blocks/transport";
 import type { GridDescriptor } from "./procedural-grids";
@@ -435,6 +436,12 @@ export type HeadlessRequest =
       path: string;
     })
   | (Revisioned & { assetId: string; operation: "delete_asset" })
+  | (Revisioned & {
+      operation: "prepare_artwork";
+      sourceAssetId: string;
+      parameters: ArtworkParameters;
+    })
+  | { operation: "commit_artwork"; manifest: ArtworkManifest }
   | (Revisioned & {
       displayName: string;
       operation: "commit_generated_asset";

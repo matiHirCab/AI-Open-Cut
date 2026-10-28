@@ -2452,7 +2452,7 @@
             "type": "object"
           },
           "projectSchemaVersion": {
-            "const": 47,
+            "const": 48,
             "type": "number"
           },
           "protocolVersion": {
@@ -30600,7 +30600,7 @@
         "type": "integer"
       },
       "schemaVersion": {
-        "const": 47,
+        "const": 48,
         "type": "number"
       },
       "settings": {
@@ -30743,6 +30743,113 @@
       "type": "object"
     },
     "ProjectPropertiesAssetsItemsProperties": {
+      "artworkDerivation": {
+        "additionalProperties": false,
+        "properties": {
+          "contentOffset": {
+            "items": {
+              "maximum": 16,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "cleanup": {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "items": {
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 3,
+                    "minItems": 3,
+                    "type": "array"
+                  },
+                  "tolerance": {
+                    "maximum": 255,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "color",
+                  "tolerance"
+                ],
+                "type": "object"
+              },
+              "outline": {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "items": {
+                      "maximum": 255,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "maxItems": 4,
+                    "minItems": 4,
+                    "type": "array"
+                  },
+                  "radius": {
+                    "maximum": 16,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "color",
+                  "radius"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "outline"
+            ],
+            "type": "object"
+          },
+          "sourceAssetId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceHash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "sourceHeight": {
+            "maximum": 512,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sourceWidth": {
+            "maximum": 512,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "version": {
+            "const": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "contentOffset",
+          "parameters",
+          "sourceAssetId",
+          "sourceHash",
+          "sourceHeight",
+          "sourceWidth",
+          "version"
+        ],
+        "type": "object"
+      },
       "contentHash": {
         "additionalProperties": false,
         "properties": {

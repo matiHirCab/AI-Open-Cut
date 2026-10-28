@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { removeArtworkIntegration } from "./artwork-integration-projection";
 import { restoreAudioBusCatalogMarker } from "./audio-buses-projection";
 import { removeKnownTextMcpAdditions } from "./known-text-projection";
 import { orderedEffectDigest } from "./ordered-effect-projection";
@@ -17,7 +18,7 @@ const digest = (value: unknown) =>
 export const restoreSpeechAlignmentCatalogMarker = (
   source: unknown
 ): RecordValue => {
-  const raw = object(source);
+  const raw = removeArtworkIntegration(object(source));
   const value =
     raw.projectSchemaVersion === 39 ||
     raw.projectSchemaVersion === 40 ||

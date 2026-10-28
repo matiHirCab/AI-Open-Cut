@@ -1,5 +1,6 @@
 import { deepStrictEqual } from "node:assert/strict";
 import contract from "../../../../contracts/channel-style-packs-v1.json";
+import { restoreArtworkIntegrationRaw } from "./artwork-integration-projection";
 import { restoreNarrationBlocksRaw } from "./narration-blocks-projection";
 
 const equal = (left: unknown, right: unknown): void =>
@@ -73,6 +74,10 @@ const removeOnce = (input: string, fragment: string): string | undefined => {
 
 /** Remove precisely CP1's reviewed bytes; never serialize unrelated metadata. */
 export const restoreChannelPackRaw = (input: string, name: Catalog): string => {
+  const withoutArtwork = restoreArtworkIntegrationRaw(input);
+  if (withoutArtwork !== input) {
+    return restoreChannelPackRaw(withoutArtwork, name);
+  }
   const withoutBlocks = restoreNarrationBlocksRaw(input);
   if (withoutBlocks !== input) {
     return restoreChannelPackRaw(withoutBlocks, name);

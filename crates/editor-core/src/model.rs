@@ -1,3 +1,5 @@
+mod artwork;
+pub use artwork::*;
 mod buffered;
 use buffered::BufferedValue;
 mod sound_events;
@@ -46,7 +48,7 @@ pub use text_layout::*;
 
 use crate::error::{CoreError, ErrorCode};
 
-pub const PROJECT_SCHEMA_VERSION: u32 = 47;
+pub const PROJECT_SCHEMA_VERSION: u32 = 48;
 
 pub const MAX_MARKERS_PER_COMPOSITION: usize = 4096;
 
@@ -271,6 +273,17 @@ impl TryFrom<ProjectDocument> for Project {
             }
         } else if value.audio_buses.as_ref().is_none_or(Option::is_none) {
             return Err("schema 39 requires audio buses".into());
+        }
+        if value.schema_version < 48
+            && value.assets.as_array().is_some_and(|assets| {
+                assets.iter().any(|asset| {
+                    asset
+                        .as_object()
+                        .is_some_and(|asset| asset.contains_key("artworkDerivation"))
+                })
+            })
+        {
+            return Err("artwork derivation requires schema 48; development artwork schema47 is unsupported".into());
         }
         if value.schema_version < 38
             && value.assets.as_array().is_some_and(|assets| {
@@ -1515,6 +1528,12 @@ fn validate_speech_identifier(value: &str, name: &str) -> Result<(), CoreError> 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Asset {
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "artwork::deserialize_derivation"
+    )]
+    pub artwork_derivation: Option<ArtworkDerivation>,
     pub id: String,
     pub media_type: MediaType,
     pub file_name: String,
@@ -3910,6 +3929,7 @@ mod tests {
             updated_at_ms: 1,
             settings: ProjectSettings::default(),
             assets: vec![Asset {
+                artwork_derivation: None,
                 id: "asset-1".into(),
                 media_type: MediaType::Audio,
                 file_name: "speech.wav".into(),

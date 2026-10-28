@@ -1,0 +1,32 @@
+{
+  "main47": {
+    "headless-protocol-v1.json": "fd9e618561829159d7ad43898d9be45972716cbc89f70e94422b33a636aa03c6",
+    "contract-ownership-v1.json": "34b1613d7b93089ed109da7c5a0d6480c18a3031e153928e4baceacde099eea2",
+    "mcp-surface-v1.json": "428aee1ef1fabdc4ddc9b634965c32291e0a4ae98dc8534ee2c0c8a4e91aae67",
+    "animation-channels-v1.json": "d6684b83b4cd426db588681e65f72b70953edbc3fb7f895850903bf63ba022fd",
+    "animation-presets-v1.json": "f95b72db980a709acdd2b2e4bf5d9a77f856aeb0b6cc6fa12a24f5a2fd09b390",
+    "extended-visual-animation-v1.json": "f7086d9fab261ce20cd0ce50a6a0e545b1d22c3cb89f9c20dc472f7ad71e35d8",
+    "inherited-animation-timing-v1.json": "a98fbbd153dcdb9a3f3afb442eab611de3b0dd597309a9d0265d3db7c9cf4100",
+    "initial-motion-preset-pack-v1.json": "6cdcafe3a3622a60e7d4989cbca2e131cd30620b84539653f22432519637c38e",
+    "mask-models-v1.json": "7f145228f1b62b3731078f4d2ff72f87846600800a1cba75eec1296dcbbb821b",
+    "motion-blur-sampling-v1.json": "d4a6b85ee0a8a30b4dd7cd7a6ae391ea1089ce964e025715bef8ed5a2fa763e8",
+    "native-motif-pack-v1.json": "06107ec4b0d70631d8a053606f0657ab932f948c9bdcf44ee6a03fb9804c21a0",
+    "native-role-team-v1.json": "f51be076a75f28aa29aac7ecc9633ace36d7dfb9c4f5e6f8b73d7866e556bb19",
+    "solid-graphic-color-slots-v1.json": "31fdef5c57c1b16bd14624e30eb8fd0333ab09f1f52b00e42f24bb455401eeb8"
+  },
+  "artwork47": {
+    "headless-protocol-v1.json": "f924fa83616b935ed7f7d0207cb183ce416c1564c25c4796ff9a9e08209f2169",
+    "contract-ownership-v1.json": "3435ab6c3f337d21c3bf244251743d26ddbb77fdd9a908423347f49c990fed4a",
+    "mcp-surface-v1.json": "7f5652c95b2019aec996c1e851fd090399eb7c520857444a4fc3427851f3ae54",
+    "animation-channels-v1.json": "d6684b83b4cd426db588681e65f72b70953edbc3fb7f895850903bf63ba022fd",
+    "animation-presets-v1.json": "f95b72db980a709acdd2b2e4bf5d9a77f856aeb0b6cc6fa12a24f5a2fd09b390",
+    "extended-visual-animation-v1.json": "f7086d9fab261ce20cd0ce50a6a0e545b1d22c3cb89f9c20dc472f7ad71e35d8",
+    "inherited-animation-timing-v1.json": "a98fbbd153dcdb9a3f3afb442eab611de3b0dd597309a9d0265d3db7c9cf4100",
+    "initial-motion-preset-pack-v1.json": "6cdcafe3a3622a60e7d4989cbca2e131cd30620b84539653f22432519637c38e",
+    "mask-models-v1.json": "7f145228f1b62b3731078f4d2ff72f87846600800a1cba75eec1296dcbbb821b",
+    "motion-blur-sampling-v1.json": "d4a6b85ee0a8a30b4dd7cd7a6ae391ea1089ce964e025715bef8ed5a2fa763e8",
+    "native-motif-pack-v1.json": "06107ec4b0d70631d8a053606f0657ab932f948c9bdcf44ee6a03fb9804c21a0",
+    "native-role-team-v1.json": "f51be076a75f28aa29aac7ecc9633ace36d7dfb9c4f5e6f8b73d7866e556bb19",
+    "solid-graphic-color-slots-v1.json": "31fdef5c57c1b16bd14624e30eb8fd0333ab09f1f52b00e42f24bb455401eeb8"
+  }
+}
