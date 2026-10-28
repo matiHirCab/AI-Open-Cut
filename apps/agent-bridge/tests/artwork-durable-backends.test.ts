@@ -1,14 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { afterEach, expect, it } from "vitest";
 import { artworkDurableBackends } from "./artwork-durable-workflow";
 import { syntheticNarrationWav } from "./fixtures/narration-blocks-provider";
@@ -25,8 +27,8 @@ const png = Buffer.from(
 );
 const digest = (value: Buffer) =>
   createHash("sha256").update(value).digest("hex");
-function setup() {
-  const root = mkdtempSync(join(tmpdir(), "artwork-probe-unit-"));
+function setup(parent = tmpdir()) {
+  const root = realpathSync(mkdtempSync(join(parent, "artwork-probe-unit-")));
   roots.push(root);
   const backend = process.execPath;
   const manifest = join(root, "allowlist.json"),
@@ -108,6 +110,48 @@ it("probes actual owned headers with empty PATH and delegates configured version
   expect(delegated.status).toBe(direct.status);
   expect(delegated.stdout).toBe(direct.stdout);
   expect(delegated.stderr).toBe(direct.stderr);
+});
+it("canonicalizes owned root ancestors while refusing alias and linked inputs", () => {
+  const outer = realpathSync(
+    mkdtempSync(join(tmpdir(), "artwork-owned-alias-"))
+  );
+  roots.push(outer);
+  const physical = join(outer, "physical"),
+    alias = join(outer, "alias"),
+    linkType = process.platform === "win32" ? "junction" : "dir";
+  mkdirSync(physical);
+  symlinkSync(physical, alias, linkType);
+  const f = setup(alias);
+  const image = f.run(f.image),
+    wav = f.run(f.wav);
+  expect(image.status, image.stderr).toBe(0);
+  expect(JSON.parse(image.stdout)).toMatchObject({
+    frames: [{ height: 3, width: 3 }],
+  });
+  expect(wav.status, wav.stderr).toBe(0);
+  expect(JSON.parse(wav.stdout)).toMatchObject({ format: { duration: "0.4" } });
+  expect(f.root).toBe(realpathSync(f.root));
+  const aliasImage = join(alias, basename(f.root), "original.png");
+  f.allow(aliasImage);
+  expect(f.run(aliasImage).status).not.toBe(0);
+  const foreign = setup();
+  f.allow(foreign.image);
+  expect(f.run(foreign.image).status).not.toBe(0);
+  const ordinary = join(f.root, "ordinary");
+  mkdirSync(ordinary);
+  writeFileSync(join(ordinary, "original.png"), png);
+  for (const [name, target] of [
+    ["same-root-child", ordinary],
+    ["foreign-child", foreign.root],
+  ] as const) {
+    const link = join(f.root, name);
+    symlinkSync(target, link, linkType);
+    const candidate = join(link, "original.png");
+    f.allow(candidate);
+    expect(f.run(candidate).status).not.toBe(0);
+  }
+  expect(readFileSync(foreign.image)).toEqual(png);
+  expect(readFileSync(join(ordinary, "original.png"))).toEqual(png);
 });
 it("refuses unknown changed malformed oversized and out-of-root fixture inputs", () => {
   const f = setup(),

@@ -8,6 +8,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -64,7 +65,9 @@ export function artworkDurableBackends(
 
 export async function verifyArtworkDurableWorkflow(base: Parameters) {
   const backends = artworkDurableBackends(base.env);
-  const root = mkdtempSync(join(tmpdir(), "opencut-artwork-durable-"));
+  const root = realpathSync(
+    mkdtempSync(join(tmpdir(), "opencut-artwork-durable-"))
+  );
   const projects = join(root, "projects"),
     work = join(root, "work"),
     exports = join(root, "exports"),
