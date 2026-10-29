@@ -1,0 +1,15 @@
+{
+  "assertionsIdenticalAfterLocalInlining": true,
+  "assertionCount": 20,
+  "outsideCaseByteIdentical": true,
+  "callsBefore": {
+    "expand": 17,
+    "dsp": 2,
+    "event": 2
+  },
+  "callsAfter": {
+    "expand": 15,
+    "dsp": 1,
+    "event": 1
+  }
+}

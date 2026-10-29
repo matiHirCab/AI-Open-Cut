@@ -593,20 +593,24 @@ describe("canonical public contracts", () => {
         ).toolDefinitions
       )
     ).toHaveLength(84);
-    expect(
-      Object.keys(
-        expandMcpSurfaceCatalog(
-          removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
-        ).toolDefinitions
-      )
-    ).toHaveLength(83);
-    expect(
-      Object.keys(
-        expandMcpSurfaceCatalog(
-          removeAudioEventMcpAdditions(MCP_SURFACE_SOURCE)
-        ).toolDefinitions
-      )
-    ).toHaveLength(82);
+    {
+      const predecessor = expandMcpSurfaceCatalog(
+        removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
+      );
+      expect(Object.keys(predecessor.toolDefinitions)).toHaveLength(83);
+      expect(
+        createHash("sha256").update(JSON.stringify(predecessor)).digest("hex")
+      ).toBe(AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256);
+    }
+    {
+      const predecessor = expandMcpSurfaceCatalog(
+        removeAudioEventMcpAdditions(MCP_SURFACE_SOURCE)
+      );
+      expect(Object.keys(predecessor.toolDefinitions)).toHaveLength(82);
+      expect(
+        createHash("sha256").update(JSON.stringify(predecessor)).digest("hex")
+      ).toBe(MCP_CURRENT_DIGEST);
+    }
     expect(
       Object.keys(
         expandMcpSurfaceCatalog(
@@ -614,28 +618,6 @@ describe("canonical public contracts", () => {
         ).toolDefinitions
       )
     ).toHaveLength(81);
-    expect(
-      createHash("sha256")
-        .update(
-          JSON.stringify(
-            expandMcpSurfaceCatalog(
-              removeAudioBusDspMcpAdditions(MCP_SURFACE_SOURCE)
-            )
-          )
-        )
-        .digest("hex")
-    ).toBe(AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256);
-    expect(
-      createHash("sha256")
-        .update(
-          JSON.stringify(
-            expandMcpSurfaceCatalog(
-              removeAudioEventMcpAdditions(MCP_SURFACE_SOURCE)
-            )
-          )
-        )
-        .digest("hex")
-    ).toBe(MCP_CURRENT_DIGEST);
     expect(
       createHash("sha256")
         .update(

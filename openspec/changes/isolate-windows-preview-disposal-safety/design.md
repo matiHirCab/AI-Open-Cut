@@ -48,3 +48,11 @@ No public, persisted or cross-language contract changes; no schema migration. Di
 ## Approval
 
 Explicit delegated reviewer approval granted on2026-10-21 for review diff SHA2562d46814469057528303e89cb32695e044f7e38f7f1d3614ae2e487db49a0747e in parent thread01a1583b-f8d9-70ae-8c32-75210bced0e5. Locally checked diagnostics may be published as an investigation draft with Windows verification pending, while the active specification remains unarchived and its policy rejection remains expected. Production changes still require amended design and review.
+
+## Catalog verification amendment: design
+
+Use one block-local DSP result for its existing83-tool check and AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256 check. Use one block-local audio-event result for its existing82-tool check and MCP_CURRENT_DIGEST check. Move the existing matching hash assertion beside its count; do not change expected values. The independent first/second current expansion and all remaining calls/assertions stay intact. Inputs and resolver/projection implementations remain untouched; no node sharing or memoization is added to public output.
+
+Reject splitting the test to evade its deadline, increasing timeouts, worker/profile changes, pin regeneration, global caching or substituting mocks. Saved work is verified by a before/after pure-operation trace and identical outputs/input digests, while actual supported Windows CI must establish the5s case passes. Linux timing is not Windows evidence. If the timeout remains, retain it and return for further design review rather than weakening checks or broadening edits.
+
+Existing native diagnosis, safety assertions, twelve-call race, attribution requirement and unapproved native-boundary extension remain unchanged. Existing mandatory verification may run only within its already approved scope; no additional restricted native experiment. Rollback is the one private test diff. No public/persisted compatibility or migration change.

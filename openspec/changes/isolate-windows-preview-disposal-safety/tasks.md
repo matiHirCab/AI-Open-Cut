@@ -20,3 +20,12 @@
 - [ ] 3.6 Commit/push verified scope and open a draft PR with exact-head Windows source/package acceptance evidence or explicit pending limits. No merge/deploy; no #228/#229 changes.
 
 Reviewer sequencing clarification: diagnostic publication may precede Windows verification after appropriate local checks. Label the draft as investigation with Windows validation pending; retain the active change and expected policy-gate rejection. This does not complete3.6 or establish a verified repair.
+
+## 4. Catalog verification amendment
+
+- [x] 4.1 Obtain exact-amendment approval; freeze original/addendum hashes before executable edits; refresh PR233/main/PR229 refs and preserve their failed evidence. Do not infer native-extension approval.
+- [x] 4.2 In contracts.test.ts only, reuse each identical DSP/audio-event predecessor within a block for its unchanged count/hash assertions. Keep every other assertion/call, current independent expansion and5s bound. Demonstrate unchanged outputs/input digests and removed duplicate work; retain the original Windows failure as red evidence.
+- [x] 4.3 Run frozen install, typecheck, lint, focused contracts.test.ts, full units, contracts:check, source integration and packaged smoke using pinned tools; disclose local worker limits. Reuse only unchanged-input/toolchain Rust/Python evidence, retaining prior ENOSPC limits. Record every failure/skip. Run strict OpenSpec and protected Moon; only the existing active diagnostic rejection is expected, never success.
+- [ ] 4.4 Publish a verified component descendant to existing draft PR233 only after permitted local checks. Observe default new-head Windows catalog case and all supported CI to terminal; no unchanged reruns. Keep the native change active/unarchived and clearly incomplete; do not claim whole-PR completion, relax gates or change restricted boundaries. Report any mandatory blocked check instead of bypassing it.
+
+Catalog checkpoint2026-10-29: local component checks passed as detailed in catalog-work-amendment/verification.md; protected Moon remains FAILED solely for this active diagnostic. Full workspace Rust/Clippy were not repeated locally due disk capacity; unchanged native-input/toolchain base CI evidence is retained, with new-head CI required by4.4. Original diagnostic tasks and archive conditions remain incomplete.
