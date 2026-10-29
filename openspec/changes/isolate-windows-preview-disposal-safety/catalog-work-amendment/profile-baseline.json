@@ -1,0 +1,80 @@
+{
+  "head": "2768cd00bec17b681e8342a4a7c51e3750bd28ec",
+  "runtime": "1.4.0",
+  "platform": "linux",
+  "sourceUnchanged": true,
+  "rows": [
+    {
+      "name": "current",
+      "repetition": 1,
+      "elapsedMs": 76.35483200000002,
+      "serializeMs": 151.311108,
+      "clones": 0,
+      "serializations": 0,
+      "serializedCharacters": 0,
+      "expandedBytes": 8763079,
+      "tools": 92,
+      "sha256": "855682b82bf5758b8f080f18230fabe53b6b12c70521451987556739203b5803"
+    },
+    {
+      "name": "current",
+      "repetition": 2,
+      "elapsedMs": 95.41853299999997,
+      "serializeMs": 80.08205499999997,
+      "clones": 0,
+      "serializations": 0,
+      "serializedCharacters": 0,
+      "expandedBytes": 8763079,
+      "tools": 92,
+      "sha256": "855682b82bf5758b8f080f18230fabe53b6b12c70521451987556739203b5803"
+    },
+    {
+      "name": "dsp",
+      "repetition": 1,
+      "elapsedMs": 185.58744000000002,
+      "serializeMs": 58.954642000000035,
+      "clones": 17,
+      "serializations": 1714,
+      "serializedCharacters": 446725,
+      "expandedBytes": 8665113,
+      "tools": 83,
+      "sha256": "87ec0e7b177ae2ec1cef3fc367102a38d2a19e541958421576d04c59075c692f"
+    },
+    {
+      "name": "dsp",
+      "repetition": 2,
+      "elapsedMs": 86.59257500000001,
+      "serializeMs": 43.79176199999995,
+      "clones": 17,
+      "serializations": 1714,
+      "serializedCharacters": 446725,
+      "expandedBytes": 8665113,
+      "tools": 83,
+      "sha256": "87ec0e7b177ae2ec1cef3fc367102a38d2a19e541958421576d04c59075c692f"
+    },
+    {
+      "name": "events",
+      "repetition": 1,
+      "elapsedMs": 103.828306,
+      "serializeMs": 46.00165700000002,
+      "clones": 19,
+      "serializations": 2154,
+      "serializedCharacters": 614503,
+      "expandedBytes": 8634441,
+      "tools": 82,
+      "sha256": "d960c87d4f1130a98de308dbb76d304650f18e1e28f3cbb2b1aa28cb3a068334"
+    },
+    {
+      "name": "events",
+      "repetition": 2,
+      "elapsedMs": 91.01921500000003,
+      "serializeMs": 25.614334999999983,
+      "clones": 19,
+      "serializations": 2154,
+      "serializedCharacters": 614503,
+      "expandedBytes": 8634441,
+      "tools": 82,
+      "sha256": "d960c87d4f1130a98de308dbb76d304650f18e1e28f3cbb2b1aa28cb3a068334"
+    }
+  ]
+}

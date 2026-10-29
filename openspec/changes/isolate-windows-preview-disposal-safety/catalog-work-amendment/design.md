@@ -1,0 +1,7 @@
+## Catalog verification amendment: design
+
+Use one block-local DSP result for its existing83-tool check and AUDIO_EVENT_PINS.manuallyReviewedCurrentExpandedSha256 check. Use one block-local audio-event result for its existing82-tool check and MCP_CURRENT_DIGEST check. Move the existing matching hash assertion beside its count; do not change expected values. The independent first/second current expansion and all remaining calls/assertions stay intact. Inputs and resolver/projection implementations remain untouched; no node sharing or memoization is added to public output.
+
+Reject splitting the test to evade its deadline, increasing timeouts, worker/profile changes, pin regeneration, global caching or substituting mocks. Saved work is verified by a before/after pure-operation trace and identical outputs/input digests, while actual supported Windows CI must establish the5s case passes. Linux timing is not Windows evidence. If the timeout remains, retain it and return for further design review rather than weakening checks or broadening edits.
+
+Existing native diagnosis, safety assertions, twelve-call race, attribution requirement and unapproved native-boundary extension remain unchanged. Existing mandatory verification may run only within its already approved scope; no additional restricted native experiment. Rollback is the one private test diff. No public/persisted compatibility or migration change.
